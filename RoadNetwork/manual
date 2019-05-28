@@ -1,0 +1,32 @@
+问题：
+1、osm数据的存储
+    目前对于地理空间数据的存储大多选择postgresql数据库，而postgresql数据库提供了postgis插件，可以将osm文件直接存储到数据库中。
+    需下载osmosis
+    步骤如下：
+    （1）首先，用pgadmin3创建数据库；
+    （2）然后设置该数据库的权限：grant all privileges on database 数据库名 to 用户名;
+    （3）对该数据库安装拓展，使其支持地理数据的存储，CREATE EXTENSION postgis; CREATE EXTENSION hstore;也可通过pgadmin中通过界面操作对其进行拓展
+    （4）通过以下命令建立相关表：psql -U postgres -d 数据库名称 -f D:\pgsimple_schema_0.6.sql（pgsimple_schema_0.6.sql在D:\osmosis\script 目录下）
+    （5）数据导入
+        osmosis --read-xml file=D:\osmosis-latest\bin\BYC.osm --write-pgsql database="BYQOSM" user="postgres" password="123456" host="localhost"
+
+2、数据获取
+可在https://download.bbbike.org/osm/bbbike/ 获取常见的城市osm文件
+也可通过https://download.geofabrik.de/  下载中国的osm文件，然后通过以下命令提取自己所需区域的路网数据
+osmosis --read-xml file=e:\China.osm --bounding-box left="112.57" right="114.03" top="23.56" bottom="22.26" --write-xml file=E:\guangzhou.osm
+
+3、道路匹配算法
+a）基于几何的算法考虑GPS点与道路的几何信息，如距离、角度等；
+b）基于拓扑的算法使用道路拓扑信息来控制；
+c）概率方法通过考虑GPS点的概率；
+d）高级的算法往往综合考虑使用全面信息，有卡尔曼滤波、模糊逻辑模型、隐式马尔可夫模型等等。
+
+4、记录
+（1）开始采用的最短距离来和轨迹方向（几何法）计算轨迹点归属路网路段，该方法的问题对车辆轨迹的GPS坐标精度要求十分严格，如果出现精度较差，可能会导致道路匹配出错，
+尤其在主辅路段较为明显
+（2）后改为窗口滑动式方法来实现路网匹配，以五个轨迹点为一次计算，计算最大连通，找出连通路线中含有最少wayid的连通路线（滑动窗口式方法（1,2,3,4,5）（3,4,5,6,7）依次类推）
+
+5、发现的问题：
+原始轨迹点中，相邻的点会出现重复，即轨迹点重合，如此无法计算此时轨迹的方向，之后观察是否有其他方法或者去重
+原始轨迹中会出现某一路段与其大致方向相反，导致此路段归属到其他路段，可能会出错
+对于长时间的缺失或者相邻两个坐标点距离过大的情况，道路匹配扔然需要另寻他法
