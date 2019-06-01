@@ -195,27 +195,7 @@ def Dic_Intersection(start_point_Candidate,end_point_Candidate):
         #way_id = list(Intersection_dic.keys())[0]
     else:
         return None
-#print(waytoway(437527025,318323104))
-# print(Find_inflectionpoint(117082582))
-# print(Find_way_By_inflectionpoint(1318916989))
-#003b5b7e-e72c-4fc5-ac6d-bcc248ac7a16
-dic1 = {152616724: [0.0003128038715210686, 8], 242945771: [0.00010030804556522377, 13], 437527024: [0.0001363336516206252, 10],
-        466289457: [0.0001363336516206252, 12],
-        466289461: [0.0003281441853758246, 79]}
-dic2 = {47574526: [0.0012152176086689948, 26], 117082574: [0.0019419407249213682, 53], 117082584: [0.0019377766987287812, 56],
-        318323104: [7.210338761900192e-05, 66], 466289455: [0.0006261494178913167, 42], 466289456: [0.0002294308136742203, 35],
-        466289458: [0.0010035872522401056, 80], 606768161: [0.0021848974637776026, 11], 606768167: [0.0001863419845841099, 52]}
-dic3 = {47574526: [0.0004943055391784846, 5], 117082588: [0.0003213427234098102, 85], 238769500: [0.0016513789668739316, 32],
-        318323104: [0.0008263644406345266, 42], 318323155: [0.0005447798849191811, 52], 466289455: [0.00037697093483638757, 5],
-        466289456: [0.0004285400665829553, 18], 606768161: [0.0024345392759626268, 35], 606768163: [0.00021793968028688493, 16],
-        606768167: [7.330786218643421e-05, 3]}
-dic4 = {47574526: [0.0001799749119644113, 50], 238769500: [0.0017224723539692813, 53], 318323155: [0.0012877193866950235, 31],
-        466289455: [5.950295839452718e-05, 14], 466289456: [0.0008110609408500418, 55], 606768163: [0.00013476959103946726, 5],
-        606768167: [0.0001877333198786578, 11]}
-dic5 = {47574526: [0.00041892782540478606, 85], 238769500: [0.0022768842324561076, 68], 318323155: [0.0022768842324561076, 12],
-        466289455: [0.0007194844748003498, 29], 606768161: [0.0002911250176899518, 1], 606768163: [0.00025703758625134906, 14],
-        606768167: [2.8412980612075053e-05, 9]}
-# 437527024 606768167
+
 def Select_By_TwoDic(Intersection,dic,flag=0):
     """
     从交集和node候选字典中选归属路段
@@ -280,6 +260,7 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
                         # 此路线是否能走通，如果不能直接舍弃，如果能：优先选way数目最少的
                         temlist = [key1,key2,key3,key4,key5]
                         if len(set(temlist))==1:  #key1,key2,key3,key4,key5  五个值相同
+                            routes.append(temlist)
                             Absolute_routes.append([key1])
                             route_distance.append(dic1[key1][0]+dic2[key2][0]+dic3[key3][0]+dic4[key4][0]+dic5[key5][0])
                             break
@@ -327,22 +308,39 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
     # print(len(routes))
     # print(len(Absolute_routes))
     # print(len(route_distance))
-    for i in range(len(routes)):
+    #for i in range(len(routes)):
          #print("可走通的路线:{}".format(routes[i]))
-         print("此路线的完整（具体）路线：{}".format(Absolute_routes[i]))
+         #print("此路线的完整（具体）路线：{}".format(Absolute_routes[i]))
          #print("候选点距此路线总距离为：{}".format(route_distance[i]))
-    minwaynum = float('inf')#单条路线中路段的数量
+    minwaynum = float('inf')  # 单条路线中路段的数量
+    mindistance = float('inf')  # 单条线路中轨迹点到路线的最短距离
+    index = -1  # 记录最终路线在Absolute_routes_set的索引
     return_route = []
     Absolute_routes_set = []
+    for i in range(len(Absolute_routes)):
+        newline = sorted(set(Absolute_routes[i]), key=Absolute_routes[i].index)
+        Absolute_routes_set.append(newline)
+        if len(newline) > 4:   #大于4个路段，即抛弃
+            continue
+        # 记录最短距离在route_distance的位置，以便取出Absolute_routes_set中的路线
+        if route_distance[i] < mindistance:
+            mindistance = route_distance[i]
+            index = i
+    if index!= -1:
+        return_route = Absolute_routes_set[index]
+    else:
+        print("出现断路")
+    """
+    #以下是根据路段的最少数量来选取最终路线的
     for line in Absolute_routes:
         newline =  sorted(set(line), key=line.index)
         Absolute_routes_set.append(newline)
         if len(newline) < minwaynum:
             minwaynum = len(newline)
     for lineset in Absolute_routes_set:
-        if len(lineset) == minwaynum:
+        if len(lineset) == minwaynum and lineset not in return_route:
             return_route.append(lineset)
-
+    """
 
     print("选出的路线为：{}".format(return_route))
     return return_route

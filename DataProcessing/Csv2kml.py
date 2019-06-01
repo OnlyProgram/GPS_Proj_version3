@@ -5,6 +5,9 @@
 # @Software: PyCharm
 import pandas as pd
 import os
+import glob
+from tqdm import tqdm
+
 """格式
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.0">
@@ -63,7 +66,7 @@ def original_csvtokml(filename,savepath,cavfilepath):
         file.write('</kml>' +'\n')
 #示例
 #original_csvtokml('000dd3e8-d174-4f59-ae90-6d9863fe2ab9','H:\GPS_Data\Road_Network\BYCBridge\Trunks\KML','H:\GPS_Data\\20170901\Top20\Meshed\\000dd3e8-d174-4f59-ae90-6d9863fe2ab9.csv')
-original_csvtokml('0a17a227-9702-4723-9234-24d0626e3e02','H:\GPS_Data\Road_Network\BYQBridge\KML\TrunksAreakml','H:\GPS_Data\Road_Network\BYQBridge\TrunksArea\\0a17a227-9702-4723-9234-24d0626e3e02.csv')
+#original_csvtokml('0a17a227-9702-4723-9234-24d0626e3e02','H:\GPS_Data\Road_Network\BYQBridge\KML\TrunksAreakml','H:\GPS_Data\Road_Network\BYQBridge\TrunksArea\\0a17a227-9702-4723-9234-24d0626e3e02.csv')
 
 
 #with open(r'H:\GPS_Data\Road_Network\BYQBridge\Trunks\BYC.txt','r') as file:
@@ -72,3 +75,16 @@ original_csvtokml('0a17a227-9702-4723-9234-24d0626e3e02','H:\GPS_Data\Road_Netwo
        #name = os.path.splitext(os.path.split(line)[-1])[0]
        #original_csvtokml(name,'H:\GPS_Data\Road_Network\BYQBridge\Trunks\KML',line.strip('\n'))
 
+
+"""
+#批处理
+savepath = "H:\GPS_Data\Road_Network\BYQBridge\KML\TrunksAreakml"
+csvx_list = glob.glob('H:\GPS_Data\Road_Network\BYQBridge\TrunksArea\*.csv')
+csvfilenum = len(csvx_list)
+with tqdm(total=csvfilenum) as pbar:
+    for i in csvx_list:
+        (tempath, tempfilename) = os.path.split(i)  # tempfilename为csv文件名（包含后缀）
+        (filename, extension) = os.path.splitext(tempfilename)  # extension为文件后缀
+        original_csvtokml(filename,savepath,i)
+        pbar.update(1)
+"""

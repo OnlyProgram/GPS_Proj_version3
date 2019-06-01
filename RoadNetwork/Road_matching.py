@@ -4,7 +4,7 @@
 # @File    : Road_matching.py
 # @Software: PyCharm
 """
-道路匹配
+道路匹配,直接采用GPS坐标在直角坐标系下算距离，0.001大概为100米左右，即0.1公里
 """
 import pymysql
 import math
@@ -12,7 +12,9 @@ import os
 from math import radians, cos, sin, asin, sqrt
 import time
 import RoadNetwork.FilesFunctions as RoadFile
+from RoadNetwork import map_navigation
 import pandas as pd
+from tqdm import tqdm
 
 def angle(v1, v2):
     """
@@ -43,17 +45,17 @@ def angle(v1, v2):
     #return math.sin((included_angle/180)*math.pi)
 def Point_Line_Distance(x,y,z):
     """
-        点到线的距离
-        :param x: 线的第一个坐标 如[x1,y1]
-        :param y: 线的第二个坐标  如[x2,y2]
-        :param z: 此点到线的距离
-        :return: 距离
-        b = (x1-x2)/y2-y1
-        """
-    if (y[0] - x[0]) == 0:  # 此线垂直x轴
-        d = abs(z[0] - x[0])
-    elif (y[1] - x[1]) == 0:  # 垂直y轴
-        d = abs(z[1] - x[1])
+    点到线的距离
+    :param x: 线的第一个坐标 如[x1,y1]
+    :param y: 线的第二个坐标  如[x2,y2]
+    :param z: 此点到线的距离
+    :return: 距离
+    b = (x1-x2)/y2-y1
+    """
+    if (y[0]-x[0])==0:  # 此线垂直x轴
+        d = abs(z[0]-x[0])
+    elif (y[1]-x[1]) == 0:#垂直y轴
+        d = abs(z[1]-x[1])
     else:
         a = 1
         k = (y[1] - x[1]) / (y[0] - x[0])
@@ -87,8 +89,6 @@ def Find_nearby_Point(x_grid,y_grid,difference = 3):
     connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
     cursor = connection.cursor()
     cursor.execute("use bjosm;")
-    #sql = 'SELECT nodes.Node_id FROM nodes WHERE nodes.X_Grid>={}  AND nodes.X_Grid<={} AND  nodes.Y_Grid>={} AND nodes.Y_Grid <= {}'.format\
-      #  (x_grid-difference,x_grid+difference,y_grid-difference,y_grid+difference)
 
     sql = """ SELECT a.way_id,b.Node_id,a.sequence_id FROM ways_nodes a,(
 		SELECT nodes.Node_id FROM nodes WHERE nodes.X_Grid >= {}
@@ -113,6 +113,8 @@ def Find_nearby_Point(x_grid,y_grid,difference = 3):
         connection.rollback()
         cursor.close()
         connection.close()
+    #print(node_id_dict)
+    #print(len(node_id_dict))
     return  node_id_dict
 def Get_Coordinate(node_id):
     """
@@ -193,7 +195,7 @@ def Find_two_Point(Candidate_way_lis,lon,lat):
     return index_lis[0],index_lis[1]
 
 
-def Find_Candiate_Point(dic,coordinate1,coordinate2):
+def Find_Candiate_Point(dic,coordinate1,coordinate2,flag=1):
     """
     返回某个坐标该归属于哪条路段，可返回多条
     :param dic:
@@ -203,11 +205,11 @@ def Find_Candiate_Point(dic,coordinate1,coordinate2):
     """
     Candidate_dic = {}  # 存储待选路段与轨迹的方余弦值和距离
     v1 = [coordinate1[0], coordinate1[1], coordinate2[0], coordinate2[1]]  # 轨迹向量
+    #print("轨迹向量V1{}".format(v1))
     for key in dic.keys():
         if len(dic[key]) == 1:  #如果候选路段只有一个点
             tem_coor1 =  Get_Coordinate(dic[key][0][0])#临时坐标1
             tem_li = Find_next_Point(dic[key][0][1],key) #接受返回的查询结果 node_id  sequence_id (2207731639, 17)
-            #print(tem_li)
             tem_coor2 = Get_Coordinate(tem_li[0])
             if dic[key][0][1]>tem_li[1]:
                 #tem_coor1的sequence_id 大于tem_coor2的sequence_id
@@ -216,8 +218,14 @@ def Find_Candiate_Point(dic,coordinate1,coordinate2):
                 v2 = [tem_coor1[0], tem_coor1[1], tem_coor2[0], tem_coor2[1]]
 
             Cosine =  angle(v1,v2)  #接受角度
+            #print("{}轨迹向量V2:{}".format(key,v2))
             #print(key, v2,Cosine)
-            distance = Point_Line_Distance([coordinate1[0],coordinate1[1]],[coordinate2[0],coordinate2[1]],[tem_coor1[0],tem_coor1[1]])
+            if flag==1:
+                distance = Point_Line_Distance([tem_coor1[0], tem_coor1[1]], [tem_coor2[0], tem_coor2[1]],
+                                               [coordinate1[0], coordinate1[1]])  # 计算轨迹点到道路的距离
+            else:
+                distance = Point_Line_Distance([tem_coor1[0], tem_coor1[1]], [tem_coor2[0], tem_coor2[1]],
+                                               [coordinate2[0], coordinate2[1]])  # 计算轨迹点(终点)到道路的距离
             Candidate_dic[key] = [distance,Cosine]
         else:
             #候选路段有两个点及以上
@@ -228,17 +236,20 @@ def Find_Candiate_Point(dic,coordinate1,coordinate2):
                 v2 = [tem_coor2[0], tem_coor2[1], tem_coor1[0], tem_coor1[1]]
             else:
                 v2 = [tem_coor1[0], tem_coor1[1], tem_coor2[0], tem_coor2[1]]
-
+            #print("{}轨迹向量V2:{}".format(key,v2))
             Cosine = angle(v1, v2)
             #print(key, v2, Cosine)
-            distance = Point_Line_Distance([coordinate1[0], coordinate1[1]], [coordinate2[0], coordinate2[1]],
-                                           [tem_coor1[0], tem_coor1[1]])
+            if flag == 1:
+                distance = Point_Line_Distance([tem_coor1[0], tem_coor1[1]], [tem_coor2[0], tem_coor2[1]],
+                                               [coordinate1[0], coordinate1[1]])  # 计算轨迹点到道路的距离
+            else:
+                distance = Point_Line_Distance([tem_coor1[0], tem_coor1[1]], [tem_coor2[0], tem_coor2[1]],
+                                               [coordinate2[0], coordinate2[1]])  # 计算轨迹点(终点)到道路的距离
             Candidate_dic[key] = [distance, Cosine]
+    #print(Candidate_dic)
     return Candidate_dic
 def Select_Route_By_Normal(dic):
     """
-    从候选路段中选出最终的way，由于距离和角度不在一个数量级，归一化后通过权重选出最终的way
-    (x-min)/(max-min)
     :param dic: 候选路段字典如：{47574526: [0.00011365462819997119, 34]}
     :return:
     """
@@ -258,13 +269,13 @@ def Select_Route_By_Normal(dic):
     return return_key
 def Find_Candidate_Route(coordinate1,coordinate2,flag=1):
     """
-        通过车辆轨迹的两个坐标选出匹配的候选路段
-        :param coordinate1: 坐标1 及其编号   如[116.5256651,39.7467991，1526,747]
-        :param coordinate2: 坐标2 及其编号   如[116.5256651,39.7467991，1526,747]
-        :param flag 如果flag==1 计算coordinate1 ==2 计算coordinate2
-        :return: 返回候选路段编号  way_id及其序列编号sequence
-        得到点的相近点  计算距离 方向
-        """
+    通过车辆轨迹的两个坐标选出匹配的候选路段
+    :param coordinate1: 坐标1 及其编号   如[116.5256651,39.7467991，1526,747]
+    :param coordinate2: 坐标2 及其编号   如[116.5256651,39.7467991，1526,747]
+    :param flag 如果flag==1 计算coordinate1 ==2 计算coordinate2
+    :return: 返回候选路段编号  way_id及其序列编号sequence
+    得到点的相近点  计算距离 方向
+    """
 
     """
     dic示例：
@@ -273,24 +284,25 @@ def Find_Candidate_Route(coordinate1,coordinate2,flag=1):
           '242945771': [[6168242644,19]]}
     """
     dic = {}
-    if flag == 1:  # 计算该路段的起点归属相近点
-
+    if flag==1:   #计算该路段的起点归属相近点
         dic = Find_nearby_Point(coordinate1[2], coordinate1[3])
-        #print(dic)
-    elif flag == 2:  # 计算该路段的终点相近点
-
+        Candidate_Route_dic = Find_Candiate_Point(dic, coordinate1, coordinate2,flag=1)
+       # print(dic)
+    elif flag==2:  #计算该路段的终点相近点
         dic = Find_nearby_Point(coordinate2[2], coordinate2[3])
-        #print(dic)
+        Candidate_Route_dic = Find_Candiate_Point(dic, coordinate1, coordinate2, flag=2)
     else:
         return None
-    Candidate_Route_dic = Find_Candiate_Point(dic, coordinate1, coordinate2)
+    #print("轨迹点的相近路网点{}".format(dic))
+
     point_Candidate = {}
     for key in Candidate_Route_dic.keys():
-        if Candidate_Route_dic[key][1] > 120:  # 轨迹与路网大于90度
+        # 轨迹与路网方向阈值暂定设置为180，由于轨迹中前后点方向可能与路网相反,点到道路距离大 于30米
+        if Candidate_Route_dic[key][1] > 180 or Candidate_Route_dic[key][0] > 0.0004:
             pass
         else:
             point_Candidate[key] = Candidate_Route_dic[key]
-    # print(point_Candidate)
+    #print("候选路段：{}".format(point_Candidate))
     return point_Candidate
 
 def Dic_Intersection(start_point_Candidate,end_point_Candidate):
@@ -318,14 +330,8 @@ def Dic_Intersection(start_point_Candidate,end_point_Candidate):
         pass
         # 如果没有交集 则分段,暂时不处理
     # return way_id
+
 def list2kml(pointsList,filename,savepath):
-    """
-    列表转kml文件
-    :param pointsList:
-    :param filename:
-    :param savepath:
-    :return:
-    """
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
     fullname = filename + '.kml'
@@ -343,55 +349,94 @@ def list2kml(pointsList,filename,savepath):
         file.write('</kml>' + '\n')
 def Area_Process(filepath,csvpath,txtpath,minlon,minlat,maxlon,maxlat):
     """
-            此函数实现单车辆的区域路径候选路段选取
-            :param filepath:车辆文件路径(网格化之后的)
-            :param minlon: 区域范围
-            :param minlat:
-            :param maxlon:
-            :param maxlat:
-            csvpath 取出该车辆的指定区域，并保存为csv文件，当处理全部区域的时候，可删除此相关部分
-            txtpath  轨迹点候选路段保存路径，每辆车保存为一个txt文件
-            :return:
-        """
-    # if not os.path.isdir(csvpath):
-    #  os.mkdir(csvpath)
-    (tempath, tempfilename) = os.path.split(filepath)  # tempfilename为csv文件名（包含后缀）
+        此函数实现单车辆的区域路径候选路段选取
+        :param filepath:车辆文件路径(网格化之后的)
+        :param minlon: 区域范围
+        :param minlat:
+        :param maxlon:
+        :param maxlat:
+        csvpath 取出该车辆的指定区域，并保存为csv文件，当处理全部区域的时候，可删除此相关部分
+        txtpath  轨迹点候选路段保存路径，每辆车保存为一个txt文件
+        :return:
+    """
+    if not os.path.isdir(csvpath):
+        os.mkdir(csvpath)
+    (tempath, tempfilename) = os.path.split(filepath)  #tempfilename为csv文件名（包含后缀）
     (filename, extension) = os.path.splitext(tempfilename)  # filename 为传入的csv文件名 extension为后缀
     txtfilename = filename + ".txt"
-    file = open(os.path.join(txtpath, txtfilename), 'a')
+    file = open(os.path.join(txtpath,txtfilename), 'a')
     df = pd.read_csv(filepath, header=None)
     df = df[(df.iloc[:, 2] < maxlon) & (df.iloc[:, 2] > minlon) & (df.iloc[:, 3] < maxlat) & (
             df.iloc[:, 3] > minlat)]
-    df = df.sort_values(by=1)
-    # df.to_csv(os.path.join(csvpath,tempfilename),index=0,header=0)
+    #df = df.sort_values(by=1)  #第一次处理加上
+    #pd.set_option('display.max_columns', None)
+    # 显示所有行
+    #pd.set_option('display.max_rows', None)
+    #df.to_csv(os.path.join(csvpath,tempfilename),index=0,header=0)
+    #print(df.iloc[:,1:4])
     for row in range(df.shape[0]):
-        print(df.iloc[row, 2], df.iloc[row, 3])
+        #print(row,df.iloc[row, 2], df.iloc[row, 3])
+        if row==0:
+            pass
+        elif df.iloc[row, 2]==df.iloc[row-1,2] and df.iloc[row, 3]==df.iloc[row-1,3]: #当前点与上一点重复，则不查找此点
+            continue
         if row == 0:
-
+            #print("处理起始坐标点{}".format([df.iloc[row, 2],df.iloc[row, 3],df.iloc[row + 1,2],df.iloc[row + 1, 3]]))
             dic = Find_Candidate_Route([df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]],
                                        [df.iloc[row + 1, 2], df.iloc[row + 1, 3], df.iloc[row + 1, 4],
-                                        df.iloc[row + 1, 5]], flag=1)
-            file.write(str(dic) + "\n")
+                                        df.iloc[row + 1, 5]],flag=1)
+            if dic:  #有候选路段才保存
+                file.write(str(dic) + "\n")
         elif row == df.shape[0] - 1:
+            #print("处理终点坐标点{}".format([df.iloc[row - 1, 2], df.iloc[row - 1, 3], df.iloc[row, 2], df.iloc[row, 3]]))
             dic = Find_Candidate_Route(
                 [df.iloc[row - 1, 2], df.iloc[row - 1, 3], df.iloc[row - 1, 4], df.iloc[row - 1, 5]],
-                [df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]], flag=2)
-            file.write(str(dic) + "\n")
+                [df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]],flag=2)
+            if dic:
+                file.write(str(dic) + "\n")
         else:
             dis1 = haversine(df.iloc[row, 2], df.iloc[row, 3], df.iloc[row - 1, 2], df.iloc[row - 1, 3])
             dis2 = haversine(df.iloc[row, 2], df.iloc[row, 3], df.iloc[row + 1, 2], df.iloc[row + 1, 3])
-            # 找相邻最近的点做为轨迹方向
-            if dis1 < dis2:
+            #找相邻最近的点做为轨迹方向
+            if dis2 > dis1:
+                #print("处理终点坐标点{}".format([df.iloc[row-1, 2], df.iloc[row-1, 3], df.iloc[row, 2], df.iloc[row, 3]]))
                 dic = Find_Candidate_Route(
                     [df.iloc[row - 1, 2], df.iloc[row - 1, 3], df.iloc[row - 1, 4], df.iloc[row - 1, 5]],
-                    [df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]], flag=2)
+                    [df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]],flag=2)
 
             else:
+               # print("处理起始坐标点{}".format([df.iloc[row, 2], df.iloc[row, 3], df.iloc[row + 1, 2], df.iloc[row + 1, 3]]))
                 dic = Find_Candidate_Route([df.iloc[row, 2], df.iloc[row, 3], df.iloc[row, 4], df.iloc[row, 5]],
                                            [df.iloc[row + 1, 2], df.iloc[row + 1, 3], df.iloc[row + 1, 4],
-                                            df.iloc[row + 1, 5]], flag=1)
-            file.write(str(dic) + "\n")
+                                            df.iloc[row + 1, 5]],flag=1)
+            if dic:
+                file.write(str(dic) + "\n")
     file.close()
+def routelist_process(route_list):
+    """
+    route_list 是双层嵌套列表，此函数实现双层列表去重，并展开为一层列表，再对相邻重复元素去重
+    :param route_list: 如：
+    [[403874396, 318323104], [403874396, 318323104],
+     [403874396, 318323104], [318323104], [318323104],
+     [318323104], [318323104, 466289455], [318323104, 466289455],
+     [318323104, 466289455], [466289455, 466289456],
+     [466289455, 466289456], [466289455, 466289456, 606768164],
+      [466289455, 466289456, 606768164], [466289456, 606768164],
+      [466289456, 606768164, 606768158, 606768162, 466839079],
+      [606768164, 606768158, 606768162, 466839079], [606768164, 606768158, 606768162, 466839079], [606768164, 606768158, 606768162, 466839079], [], [], [606768158, 606768162], [606768158, 606768162], [606768158, 606768162, 466839079, 606769458], [606768158, 606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081]]
+    :return:
+    """
+    new_list = [list(t) for t in set(tuple(_) for _ in route_list)]  # 嵌套列表去重
+    new_list.sort(key=route_list.index)
+    print(new_list)
+    # res = list(filter(None, s))
+    result = [item for sub in new_list for item in sub]  # 二层嵌套列表展开为一层
+    print(result)
+    #del_adjacent(result)  # 去除相邻的重复元素
+    #print(result)
+    newlist = list(set(result))
+    newlist.sort(key=result.index)
+    return  newlist
 def del_adjacent(alist):
     """
     删除相邻重复元素
@@ -401,9 +446,9 @@ def del_adjacent(alist):
     for i in range(len(alist) - 1, 0, -1):
          if alist[i] == alist[i-1]:
              del alist[i]
-def BatchProcess(csvpath,txtpath,areacsvpath):
+def FindRouteBatchProcess(csvpath,txtpath,areacsvpath):
     """
-    批量处理所有车辆
+    批量处理所有车辆，找出轨迹点的候补路段
     :param csvpath: 车辆csv路径
     :param txtpath: 候选路段保存路径
     :param areacsvpath: 选出车辆指定区域后将其保存的路径
@@ -413,108 +458,62 @@ def BatchProcess(csvpath,txtpath,areacsvpath):
         os.mkdir(txtpath)
     #if not os.path.isdir(csvpath):
         #os.mkdir(csvpath)
-    #csvpathlist = RoadFile.findcsvpath(csvpath)
-    #for path in csvpathlist:
-    with open(r"H:\GPS_Data\Road_Network\BYQBridge\Trunks\BYC.txt",'r') as files:
-        print(len(files.readlines()))
-        for line in files.readlines():
-            path = line.strip('\n')
-            Area_Process(path,areacsvpath,txtpath,116.3906755,39.6905694,116.4958043,39.7506401)  #此区域以北野场桥区域为例
+    #
+    #with open(r"H:\GPS_Data\Road_Network\BYQBridge\Trunks\BYC.txt",'r') as files:
+        #for line in files.readlines():
+            #path = line.strip('\n')
+    csvpathlist = RoadFile.findcsvpath(csvpath)
+    with tqdm(total=len(csvpathlist)) as pbar:
+        for path in csvpathlist:
+            if path == "H:\GPS_Data\Road_Network\BYQBridge\TextArea\\334e4763-f125-425f-ae42-8028245764fe.csv" or \
+                    path == "H:\GPS_Data\Road_Network\BYQBridge\TextArea\\f1f99a55-76cb-413c-b959-5b0dfe00d528.csv":  # 这两个文件已测试处理
+                pbar.update(1)
+                continue
+            Area_Process(path, areacsvpath, txtpath, 115, 38, 118, 40)  # 此区域以北野场桥区域为例
+            pbar.update(1)
+csvpath = "H:\GPS_Data\Road_Network\BYQBridge\TextArea"
+#FindRouteBatchProcess(csvpath,"H:\GPS_Data\Road_Network\BYQBridge\CandidateWay","H:\GPS_Data\Road_Network\BYQBridge\TrunksArea") #第一个参数后期更换
 
-#BatchProcess(None,"H:\GPS_Data\Road_Network\BYQBridge\CandidateWay","H:\GPS_Data\Road_Network\BYQBridge\TrunksArea") #第一个参数后期更换
+def FinalRouteBatchProcess(txtpath,finalroutesavepath):
+    """
 
+    :param txtpath: 候选路段txt文件路径
+    :param finalroutesavepath:  选出的最后路径保存为txt文件
+    :return:
+    """
+    route_list = []  # 完整路线
+    with open(txtpath, 'r') as file:
+        lines = file.readlines()
+        linesNums = len(lines)
+        print(linesNums)
+        for linenum in range(linesNums):
 
-
-
-"""
-#以下代码均为测试
-#以下点为000dd3e8-d174-4f59-ae90-6d9863fe2ab9辆在北野场桥的点  具体见图片H:\GPS_Data\Road_Network\BYCBridge\Trunks\KML
-Point_A = [116.427295,39.721135,1428,722]
-Point_B = [116.441663,39.720951,1442,721]
-Point_C = [116.445263,39.723566,1446,724]
-Point_D = [116.453246,39.724846,1454,725]
-Point_E = [116.446415,39.724231,1447,725]
-Point_F = [116.441463,39.723983,1442,724]
-Point_G = [116.436166,39.7231,1437,724]
-
-start_time = time.time()
-#way_id = Find_Candidate_Route([116.427295,39.721135,1428,722],[116.441663,39.720951,1442,721])  #选出该轨迹的归属路段ID
-Find_Candidate_Route([116.427295,39.721135,1428,722],[116.441663,39.720951,1442,721]) #A——B
-Find_Candidate_Route([116.441663,39.720951,1442,721],[116.445263,39.723566,1446,724]) #B——C
-Find_Candidate_Route(Point_D,Point_E)
-Find_Candidate_Route(Point_E,Point_F)
-Find_Candidate_Route(Point_F,Point_G) #F——G
-
-#coor_list = Fill_Points(47574526,Point_A,Point_B)
-
-#points = [[116.427295,39.721135],[116.4274047, 39.7211178], [116.428484, 39.721102], [116.4298015, 39.7210816], [116.4309455, 39.721055], [116.4314972, 39.7210466], [116.4318185, 39.7210295], [116.4322978, 39.7210258], [116.4329665, 39.7210645], [116.4337314, 39.7211236], [116.4350331, 39.7211041], [116.4355501, 39.7210265],[116.441663,39.720951]]
-#list2kml(points,"text_47574526","H:\GPS_Data\Road_Network\BYQBridge\Trunks\KML")
-
-#路段：A-B  被选出为：47574526
-#路段：BC   被选出为：47574526
-#路段 FG 应该选way_id  242945771
-
-
-
-
-print("*********************************")
-#以下点为003b5b7e-e72c-4fc5-ac6d-bcc248ac7a16辆在北野场桥的点  具体见图片H:\GPS_Data\Road_Network\BYCBridge\Trunks\KML
-AB_1 = [116.443195,39.723886,1444,724]
-AB_2 = [116.436326,39.72201,1437,723]
-
-CD_1 = [116.437743,39.720175,1438,721]
-CD_2 = [116.439421,39.71927,1440,720]
-DE_2 = [116.440981,39.71747,1441,718]
-EF_1 = [116.44636799999999,39.70594000000001,1447,706]
-Find_Candidate_Route(AB_1,AB_2)  #有两个way_id
-Find_Candidate_Route(AB_2,CD_1)
-Find_Candidate_Route(CD_1,CD_2)
-Find_Candidate_Route(CD_2,DE_2)
-Find_Candidate_Route(DE_2,EF_1)
+            if linenum + 4 >= linesNums:  # 最后一次滑动大于最后一个点的编号，linenum代表行数
+                print("处理坐标编号{},{},{},{},{}".format(linenum, linenum + 1, linenum + 2, linenum + 3,
+                                                    linenum + 4))
+                routeline = map_navigation.Select_Route(eval(lines[-5].strip('\n')),
+                                                        eval(lines[-4].strip('\n')),
+                                                        eval(lines[-3].strip('\n')),
+                                                        eval(lines[-2].strip('\n')),
+                                                        eval(lines[-1].strip('\n')))
+                route_list.append(routeline)
+                break
+            else:
+                start_linenum = linenum
+                print("处理坐标编号{},{},{},{},{}".format(start_linenum, start_linenum + 1, start_linenum + 2,
+                                                    start_linenum + 3,
+                                                    start_linenum + 4))
+                routeline = map_navigation.Select_Route(eval(lines[start_linenum].strip('\n')),
+                                                        eval(lines[start_linenum + 1].strip('\n')),
+                                                        eval(lines[start_linenum + 2].strip('\n')),
+                                                        eval(lines[start_linenum + 3].strip('\n')),
+                                                        eval(lines[start_linenum + 4].strip('\n')))
+                route_list.append(routeline)
+    new_list = routelist_process(route_list)
 
 
-#以下点为00406a40-8734-4679-9b3c-35720c02af89辆在北野场桥的点  具体见图片H:\GPS_Data\Road_Network\BYCBridge\Trunks\KML
-A = [116.429886,39.7212,1430,722]
-B = [116.435615,39.721731,1436,722]
-C = [116.442311,39.723415,1443,724]
-D = [116.449615,39.724183,1450,725]
-#Find_Candidate_Route(A,B)  #正确选择：318323104
-
-#以下点为006b7fa2-c58b-4743-925f-d3da0764a362辆在北野场桥的点  具体见图片H:\GPS_Data\Road_Network\BYCBridge\Trunks\KML
-
-print("*********************************")
-AA = [116.4556,39.724853,1456,725]
-BB = [116.448836,39.724255,1449,725]
-CC = [116.436488,39.721958,1437,722]
-DD = [116.439721,39.719035,1440,720]
-EE = [116.442351,39.714918,1443,715]
-FF = [116.444851,39.709875,1445,710]
-Find_Candidate_Route(AA,BB)
-Find_Candidate_Route(BB,CC)
-Find_Candidate_Route(CC,DD)
-Find_Candidate_Route(DD,EE)
-Find_Candidate_Route(EE,FF)
-print("*********************************")
-#0d201cd1-0a18-43c0-9e16-f10f62833dd9
-AAA = [116.442631,39.715395,1443,716]
-BBB = [116.440796,39.720906,1441,721]
-CCC = [116.441106,39.723395,1442,724]
-DDD = [116.437556,39.723076,1438,724]
-EEE = [116.424986,39.7214,1425,722]
-FFF = [116.408851,39.720116,1409,721]
-Find_Candidate_Route(AAA,BBB)
-Find_Candidate_Route(BBB,CCC)
-Find_Candidate_Route(CCC,DDD)
-Find_Candidate_Route(DDD,EEE)
-Find_Candidate_Route(EEE,FFF)
+#Find_Candidate_Route([116.435285,39.73246,1436,733],[116.435285,39.732461,1436,733],flag=1)
+#print(Point_Line_Distance([116.4347764, 39.7326724], [116.434316, 39.7335476],[116.435285,39.73246]))
 
 
-print("耗时：{}".format(time.time() - start_time))
-di = Find_nearby_Point(1414,721)
-print(di)
-print(Find_Candiate_Point(di,[116.413665,39.720553,1714,721],[116.418073,39.721097,1719,722]))
-#print(angle([116.4180109,39.7210628,116.4193757,39.7211948],[116.418073,39.721097,116.418073,39.721096]))
-"""
-di = Find_nearby_Point(1414,721)
-print(di)
-print(Find_Candiate_Point(di,[116.413665,39.720553,1714,721],[116.418073,39.721097,1719,722]))
+
