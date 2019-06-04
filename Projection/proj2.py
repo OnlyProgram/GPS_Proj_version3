@@ -18,9 +18,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import seaborn as sns
 import pandas as pd
-df = pd.read_csv(r'H:\\GPS_Data\\20170901\\Top20\\Top20Trunk\\036f3c48-fed9-4acc-80ac-61fbad58b1c2.csv',\
+df = pd.read_csv(r'H:\\GPS_Data\\20170901\\Top20\\Top20Trunk\\ed78a56c-e0d2-4af6-b73b-f57848f82f61.csv',\
 	usecols=[1,2,3],names=['time','lng','lat'])
-print(df.head())
+
 
 df = df[(df.iloc[:, 1] < 118) & (df.iloc[:, 1] > 115) & (df.iloc[:, 2] < 42) & (df.iloc[:,2] > 39)]  #去除北京外GPS坐标#去除北京外GPS坐标
 
@@ -32,7 +32,9 @@ sns.set(style="whitegrid")
 #plt.ylim(-80,60)
 #plt.xticks(np.linspace(-20,100,100,endpoint=True))
 #plt.yticks(np.linspace(-80,60,100,endpoint=True))
-sns.scatterplot(df.iloc[:,1],df.iloc[:,2],data=df,marker='.',color='b')
-#plt.savefig(r'H:\GPS_Data\Trunk_GPS_Data\0dd1b47d-f845-48d6-b5bb-105d9160cf54.png',dpi=500)
+#sns.scatterplot(df.iloc[:,1],df.iloc[:,2],data=df,marker='.',color='b')
+for i in range(df.shape[0]):
+	plt.scatter(df.iloc[i,1],df.iloc[i,2],color='black',marker='.')
+
 plt.show()
 

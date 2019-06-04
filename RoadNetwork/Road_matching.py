@@ -10,7 +10,9 @@ import pymysql
 import math
 import os
 from math import radians, cos, sin, asin, sqrt
+import glob
 import time
+from tqdm import tqdm
 import RoadNetwork.FilesFunctions as RoadFile
 from RoadNetwork import map_navigation
 import pandas as pd
@@ -165,7 +167,7 @@ def Find_next_Point(sequence_id,way_id):
     connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
     cursor = connection.cursor()
     cursor.execute("use bjosm;")
-    sql = "SELECT ways_nodes.node_id,ways_nodes.sequence_id FROM ways_nodes WHERE ways_nodes.way_id={} AND ways_nodes.sequence_id={}".format(str(way_id),str(sequence_id+1))
+    sql = """SELECT ways_nodes.node_id,ways_nodes.sequence_id FROM ways_nodes WHERE ways_nodes.way_id={} AND ways_nodes.sequence_id={}""".format(str(way_id),str(sequence_id+1))
     cursor.execute(sql)
     result = cursor.fetchone()
     if  result:
@@ -416,14 +418,6 @@ def routelist_process(route_list):
     """
     route_list 是双层嵌套列表，此函数实现双层列表去重，并展开为一层列表，再对相邻重复元素去重
     :param route_list: 如：
-    [[403874396, 318323104], [403874396, 318323104],
-     [403874396, 318323104], [318323104], [318323104],
-     [318323104], [318323104, 466289455], [318323104, 466289455],
-     [318323104, 466289455], [466289455, 466289456],
-     [466289455, 466289456], [466289455, 466289456, 606768164],
-      [466289455, 466289456, 606768164], [466289456, 606768164],
-      [466289456, 606768164, 606768158, 606768162, 466839079],
-      [606768164, 606768158, 606768162, 466839079], [606768164, 606768158, 606768162, 466839079], [606768164, 606768158, 606768162, 466839079], [], [], [606768158, 606768162], [606768158, 606768162], [606768158, 606768162, 466839079, 606769458], [606768158, 606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081], [606768162, 466839079, 606769458, 466839081]]
     :return:
     """
     new_list = [list(t) for t in set(tuple(_) for _ in route_list)]  # 嵌套列表去重
@@ -474,46 +468,75 @@ def FindRouteBatchProcess(csvpath,txtpath,areacsvpath):
 csvpath = "H:\GPS_Data\Road_Network\BYQBridge\TextArea"
 #FindRouteBatchProcess(csvpath,"H:\GPS_Data\Road_Network\BYQBridge\CandidateWay","H:\GPS_Data\Road_Network\BYQBridge\TrunksArea") #第一个参数后期更换
 
-def FinalRouteBatchProcess(txtpath,finalroutesavepath):
+def SelectFinalRoute(txtpath,finalroutesavepath,finalname):
     """
 
     :param txtpath: 候选路段txt文件路径
     :param finalroutesavepath:  选出的最后路径保存为txt文件
     :return:
     """
+    (tempath, tempfilename) = os.path.split(txtpath)  # tempfilename为csv文件名（包含后缀）
+    (filename, extension) = os.path.splitext(tempfilename)  # filename 为传入的txt文件名 extension为后缀
+    Point_attr_line = []  #存储每个轨迹点所属的路段
     route_list = []  # 完整路线
     with open(txtpath, 'r') as file:
         lines = file.readlines()
         linesNums = len(lines)
-        print(linesNums)
+        #print(linesNums)
         for linenum in range(linesNums):
 
             if linenum + 4 >= linesNums:  # 最后一次滑动大于最后一个点的编号，linenum代表行数
-                print("处理坐标编号{},{},{},{},{}".format(linenum, linenum + 1, linenum + 2, linenum + 3,
-                                                    linenum + 4))
+                #print("处理坐标编号{},{},{},{},{}".format(linenum, linenum + 1, linenum + 2, linenum + 3,linenum + 4))
                 routeline = map_navigation.Select_Route(eval(lines[-5].strip('\n')),
-                                                        eval(lines[-4].strip('\n')),
-                                                        eval(lines[-3].strip('\n')),
-                                                        eval(lines[-2].strip('\n')),
-                                                        eval(lines[-1].strip('\n')))
+                                              eval(lines[-4].strip('\n')),
+                                              eval(lines[-3].strip('\n')),
+                                              eval(lines[-2].strip('\n')),
+                                              eval(lines[-1].strip('\n')))
                 route_list.append(routeline)
                 break
             else:
                 start_linenum = linenum
-                print("处理坐标编号{},{},{},{},{}".format(start_linenum, start_linenum + 1, start_linenum + 2,
-                                                    start_linenum + 3,
-                                                    start_linenum + 4))
+                #print("处理坐标编号{},{},{},{},{}".format(start_linenum, start_linenum + 1, start_linenum + 2,start_linenum + 3,start_linenum + 4))
                 routeline = map_navigation.Select_Route(eval(lines[start_linenum].strip('\n')),
-                                                        eval(lines[start_linenum + 1].strip('\n')),
-                                                        eval(lines[start_linenum + 2].strip('\n')),
-                                                        eval(lines[start_linenum + 3].strip('\n')),
-                                                        eval(lines[start_linenum + 4].strip('\n')))
+                                              eval(lines[start_linenum + 1].strip('\n')),
+                                              eval(lines[start_linenum + 2].strip('\n')),
+                                              eval(lines[start_linenum + 3].strip('\n')),
+                                              eval(lines[start_linenum + 4].strip('\n')))
                 route_list.append(routeline)
-    new_list = routelist_process(route_list)
+    for index in range(len(route_list)):
+        if index == len(route_list)-1:
+            Point_attr_line.extend(route_list[index])
+        elif len(route_list[index])!=0:
+            Point_attr_line.append(route_list[index][0])
+        else:
+            pass
+    safilename = finalname +".txt"
+    with open(os.path.join(finalroutesavepath,safilename),'a') as file:
+        file.write(filename + "\n")
+        file.write(str(route_list)+"\n")
+        file.write(str(Point_attr_line)+"\n\n")
 
 
 #Find_Candidate_Route([116.435285,39.73246,1436,733],[116.435285,39.732461,1436,733],flag=1)
 #print(Point_Line_Distance([116.4347764, 39.7326724], [116.434316, 39.7335476],[116.435285,39.73246]))
-
-
-
+def BatchProcessFinalRoutes():
+    """
+    批量处理选取最后的路线
+    :return:
+    """
+    txtfilespath = "H:\GPS_Data\Road_Network\BYQBridge\CandidateWay\\test"
+    txt_list = glob.glob(os.path.join(txtfilespath, '*.txt'))
+    savepath = "H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes"
+    savefilename = "tsetfinallines"
+    csvfilenum = len(txt_list)
+    # for subfile in txt_list:
+    #     print("\n正在处理{} \n".format(str(subfile).split("\\")[-1]))
+    #     SelectFinalRoute(subfile, savepath, savefilename)
+    with tqdm(total=csvfilenum) as pbar:
+        for subfile in txt_list:
+            print("\n正在处理{} \n".format(str(subfile).split("\\")[-1]))
+            SelectFinalRoute(subfile, savepath, savefilename)
+            pbar.update(1)
+#starttime = time.time()
+#BatchProcessFinalRoutes()
+#print("耗时：{}".format(time.time()-starttime))

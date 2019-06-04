@@ -4,7 +4,7 @@
 # @File    : map_navigation.py
 # @Software: PyCharm
 """
-实现openstreetmap简单的路径导航
+实现openstreetmap简单的路径导航（没有考虑方向），最终路线的选取策略为：每一条路线含有路段小于8且按照最短距离选择
 """
 import pymysql
 import time
@@ -49,7 +49,16 @@ def FindWayStartEnd(way):
     connection.close()
     return result
 
-
+def del_adjacent(alist):
+    """
+    删除相邻重复元素
+    :param alist:
+    :return:
+    """
+    for i in range(len(alist) - 1, 0, -1):
+         if alist[i] == alist[i-1]:
+             del alist[i]
+    return alist
 def Find_inflectionpoint(way):
     """
     找路段way的所有拐点
@@ -233,7 +242,6 @@ def Select_By_TwoDic(Intersection,dic,flag=0):
 
 
 
-
 def Select_Route(dic1,dic2,dic3,dic4,dic5):
     """
     根据候选点选出最终的路径
@@ -318,9 +326,11 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
     return_route = []
     Absolute_routes_set = []
     for i in range(len(Absolute_routes)):
-        newline = sorted(set(Absolute_routes[i]), key=Absolute_routes[i].index)
+        #newline = sorted(set(Absolute_routes[i]), key=Absolute_routes[i].index)
+        #Absolute_routes_set.append(newline)
+        newline = del_adjacent(Absolute_routes[i])
         Absolute_routes_set.append(newline)
-        if len(newline) > 4:   #大于4个路段，即抛弃
+        if len(newline) > 8:   #大于8个路段，即抛弃
             continue
         # 记录最短距离在route_distance的位置，以便取出Absolute_routes_set中的路线
         if route_distance[i] < mindistance:
@@ -329,7 +339,8 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
     if index!= -1:
         return_route = Absolute_routes_set[index]
     else:
-        print("出现断路")
+        pass
+        #print("出现断路")
     """
     #以下是根据路段的最少数量来选取最终路线的
     for line in Absolute_routes:
@@ -342,7 +353,7 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
             return_route.append(lineset)
     """
 
-    print("选出的路线为：{}".format(return_route))
+    #print("选出的路线为：{}".format(return_route))
     return return_route
 #res = FindWayStartEnd(318323170)
 #print(res[0][0],res[0][1])
