@@ -4,7 +4,7 @@
 # @File    : map_navigation.py
 # @Software: PyCharm
 """
-实现openstreetmap简单的路径导航（没有考虑方向），最终路线的选取策略为：每一条路线含有路段小于8且按照最短距离选择
+实现openstreetmap简单的路径导航（没有考虑方向），最终路线的选取策略为：窗口式策略，每一条路线含有路段小于8且按照最短距离选择
 """
 import pymysql
 import time

@@ -279,7 +279,87 @@ def Find_Candidate_Route(coordinate1,coordinate2,flag=1):
         else:
             point_Candidate[key] = Candidate_Route_dic[key]
     return point_Candidate
+def Double_layer_list(doublelist:list):
+    """
+    双层列表去重
+    :param doublelist:  双层列表
+    :return:
+    """
+    new_list = [list(t) for t in set(tuple(_) for _ in doublelist)]  # 嵌套列表去重
+    new_list.sort(key=doublelist.index)
+    return new_list
+def Is_List_Prefix(list1:list,list2:list):
+    """
+    判断两个是否为另一个前缀,
+    :param list1:
+    :param list2:
+    :return:返回前缀
+    """
+    len1 = len(list1)
+    len2 = len(list2)
+    flag = 1
+    if len1<=len2:
+        for index in range(len1):
+            if list1[index]==list2[index]:
+                pass
+            else:
+                flag=0
+        if flag==1:
+            return list1
+        else:return None
+    elif len1>len2:
+        for index in range(len2):
+            if list1[index]==list2[index]:
+                pass
+            else:
+                flag=0
+        if flag==1:
+            return list2
+        else:return None
+def Sequential_subset(slist):
+    """
+    #传入时不会有重复子列表
+    如果一个列表是两个及以上的前缀，则会被删除，如果只是一个列表的前缀，则不会被删除（路口）
 
+    去除子集  如[[1,2,3],[1,2]]
+    :param slist: 为双层嵌套列表
+    :return:
+    """
+    del_list = []  # 要删除的子列表
+    index_list = [i for i in range(len(slist))]
+    # print(index_list)
+    compared = []  # 已经比较的
+    for index in index_list:
+        compared.append(index)
+        for index2 in index_list:
+            if index2 in compared:  # 不比较本身
+                pass
+            else:
+                temdel = Is_List_Prefix(slist[index], slist[index2])
+                if temdel:
+                    del_list.append(temdel)
+    # print(del_list)
+    seta = Double_layer_list(del_list)
+    n = [del_list.count(i) for i in seta]  # 统计频率
+    z = zip(seta, n)
+    z = sorted(z, key=lambda t: t[1], reverse=True)
+    # 统计出每个前缀出现的次数
+    del_list = [i[0] for i in z if i[1] > 1]
+    print(del_list)
+    for subdellist in del_list:
+        slist.remove(subdellist)
+    # print(slist)
+    return slist
+def del_adjacent(alist):
+    """
+    删除相邻重复元素
+    :param alist:
+    :return:
+    """
+    for i in range(len(alist) - 1, 0, -1):
+         if alist[i] == alist[i-1]:
+             del alist[i]
+    return alist
 di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10], [2207731541, 11], [727309621, 12]],
       47574526: [[727309576, 2], [2207731519, 3], [727309578, 4], [727309579, 5], [727309582, 6]],
       47574777: [[605279076, 1], [605279309, 2]],
@@ -291,7 +371,6 @@ di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10]
       403874396: [[4061751582, 1]],
       403874397: [[2207731533, 7]],
       461830999: [[3247242212, 1]]}
-print(Find_Candidate_Route([116.395731,39.719466,1396,720],[116.40172,39.719368,1402,720],flag=2))
+#print(Find_Candidate_Route([116.395731,39.719466,1396,720],[116.40172,39.719368,1402,720],flag=2))
+#print(haversine(116.438871,39.720601,116.440767,39.721627))
 #{47574526: [0.00011744496663786911, 2], 47574777: [3.804790392400445e-05, 4], 242945794: [0.00033793311935096965, 76], 403874395: [2.6417826493659107e-05, 1], 403874396: [2.2342567885180277e-05, 1]}
-
-

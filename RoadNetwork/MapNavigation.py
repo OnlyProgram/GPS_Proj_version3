@@ -24,6 +24,9 @@ def TwoWay_intersection(wayid1, wayid2):
     :return: 返回交叉点
 
     """
+    if wayid1==wayid2:
+        print("两条路段相同，如果想判断两个路段是否有交点，请输入两个不同的wayid")
+        return None
     connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
     cursor = connection.cursor()
     cursor.execute("use bjosm;")
@@ -88,14 +91,18 @@ def waytoway(way_id1, way_id2):
     :return:
     首先判断两个路段是否有交集，有交集则这两条路不需要经过其他路线的连接
     """
+    if way_id1 == way_id2:
+        return [way_id1,way_id2]
     route = []
     node_id = TwoWay_intersection(way_id1, way_id2)  #两条路段交点
     if node_id:
+        wayslist1 = Common_Functions.Get_way_Nodes(way_id1)
         wayslist2 = Common_Functions.Get_way_Nodes(way_id2)  #示例：[320524866, 2207731964, 320524867]
         index = wayslist2.index(node_id[0][0])
         if index==len(wayslist2)-1:  #交点是way2的最后一个点，那么即使way1 way2有交点，则way1也是无法到达way2的
             return None
-
+        elif wayslist1.index(node_id[0][0]) ==0:    #交点是way1的第一个点
+            return None
         else:
             route.extend([way_id1, way_id2])
             return route
@@ -155,9 +162,11 @@ def waytoway(way_id1, way_id2):
                 if wayid==len(new_route)-1:
                     return new_route
                 Intersection = TwoWay_intersection(new_route[wayid], new_route[wayid + 1])  # 两条路段交点
+                wayslist1 = Common_Functions.Get_way_Nodes(new_route[wayid])
                 wayslist2 = Common_Functions.Get_way_Nodes(new_route[wayid + 1])  # 示例：[320524866, 2207731964, 320524867]
                 index = wayslist2.index(Intersection[0][0])
-                if index == len(wayslist2) - 1:  # 交点是way2的最后一个点，那么即使way1 way2有交点，则way1也是无法到达way2的
+                # 交点是way2的最后一个点，那么即使way1 way2有交点，则way1也是无法到达way2的,或者交点是way1的起点，也无法通过
+                if index == len(wayslist2) - 1 or wayslist1.index(Intersection[0][0]) ==0:
                     return None
         else:
             #print("无法从路段:{}行驶到路段:{}".format(way_id1,way_id2))
