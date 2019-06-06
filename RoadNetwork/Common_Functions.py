@@ -339,13 +339,13 @@ def Sequential_subset(slist):
                 if temdel:
                     del_list.append(temdel)
     # print(del_list)
-    seta = Double_layer_list(del_list)
+    seta = Double_layer_list(del_list)   #去重
     n = [del_list.count(i) for i in seta]  # 统计频率
     z = zip(seta, n)
     z = sorted(z, key=lambda t: t[1], reverse=True)
     # 统计出每个前缀出现的次数
     del_list = [i[0] for i in z if i[1] > 1]
-    print(del_list)
+    #print(del_list)
     for subdellist in del_list:
         slist.remove(subdellist)
     # print(slist)
@@ -360,6 +360,58 @@ def del_adjacent(alist):
          if alist[i] == alist[i-1]:
              del alist[i]
     return alist
+def DoubleDel(dlist:list):
+    """
+    对双层列表的每一个子列表进行相邻元素去重，然后去重
+    :param dlist: 双层列表
+    :return:
+    """
+    for sub in dlist:
+        sub = del_adjacent(sub)
+    dlist = Double_layer_list(dlist)
+    return dlist
+def Main_Auxiliary_road(slist:list):
+    """
+    传入双层列表 ，去除类似[47574526, 318323104, 47574526], [47574526, 210697572, 318323104, 47574526]种的路段，即通过某个路段之后又回到此路段
+    先只考虑头尾
+    :param slist:双层列表
+    :return:
+    """
+    startenddel_waylist = []  #路段头尾路段编号相同 待删除路段
+    for sub in slist:
+        if sub[0]==sub[-1]:
+            startenddel_waylist.append(sub)
+    for subdel in startenddel_waylist:
+        slist.remove(subdel)
+    # 以上的去除同一条候选路线头尾路段编号相同的路线
+
+    return  slist
+def Start_End(slist:list):
+    # 以下为去除 ：对于[wayid1,wayid2,wayid3] [wayid1,wayid4,wayid5,wayid3]  去除路段多的,如果包含路段数量一致 暂不处理
+    del_list = []  # 要删除的子列表
+    index_list = [i for i in range(len(slist))]
+    # print(index_list)
+    compared = []  # 已经比较的
+    for index in index_list:
+        compared.append(index)
+        for index2 in index_list:
+            if index2 in compared:  # 不比较本身
+                pass
+            else:
+                # 候选路线slist[index] slist[index2] 的头尾路段编号是一样的
+                if slist[index][0] == slist[index2][0] and slist[index][-1] == slist[index2][-1]:
+                    if len(slist[index]) > len(slist[index2]):
+                        del_list.append(slist[index])
+                    elif len(slist[index]) < len(slist[index2]):
+                        del_list.append(slist[index2])
+                    else:
+                        pass
+                else:
+                    pass
+    del_list = Double_layer_list(del_list)
+    for delsub in del_list:
+        slist.remove(delsub)
+    return slist
 di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10], [2207731541, 11], [727309621, 12]],
       47574526: [[727309576, 2], [2207731519, 3], [727309578, 4], [727309579, 5], [727309582, 6]],
       47574777: [[605279076, 1], [605279309, 2]],
@@ -374,3 +426,21 @@ di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10]
 #print(Find_Candidate_Route([116.395731,39.719466,1396,720],[116.40172,39.719368,1402,720],flag=2))
 #print(haversine(116.438871,39.720601,116.440767,39.721627))
 #{47574526: [0.00011744496663786911, 2], 47574777: [3.804790392400445e-05, 4], 242945794: [0.00033793311935096965, 76], 403874395: [2.6417826493659107e-05, 1], 403874396: [2.2342567885180277e-05, 1]}
+testlist = [[47574526, 47574526, 47574526, 47574526], [47574526, 47574526, 47574526, 210697572],
+            [47574526, 47574526, 47574526, 318323104], [47574526, 47574526, 210697572, 210697572],
+            [47574526, 47574526, 210697572, 318323104], [47574526, 47574526, 318323104, 47574526],
+            [47574526, 47574526, 318323104, 318323104]]
+startendtest = [[47574526, 210697572, 210697572], [47574526, 210697572, 318323104],
+                [47574526, 210697572, 318323104, 47574526], [47574526, 210697572, 318323104, 318323104],
+                [47574777, 47574526, 47574526], [47574777, 47574526, 210697572], [47574777, 47574526, 318323104],
+                [47574777, 47574526, 318323104, 47574526], [47574777, 47574526, 318323104, 318323104], [47574777, 210697572, 210697572],
+                [47574777, 210697572, 318323104], [47574777, 210697572, 318323104, 47574526], [47574777, 210697572, 318323104, 318323104],
+                [403874395, 47574526, 47574526], [403874395, 47574526, 210697572], [403874395, 47574526, 318323104],
+                [403874395, 47574526, 318323104, 47574526], [403874395, 47574526, 318323104, 318323104], [403874395, 210697572, 210697572],
+                [403874395, 210697572, 318323104], [403874395, 210697572, 318323104, 47574526], [403874395, 210697572, 318323104, 318323104],
+                [403874395, 403874396, 318323104, 47574526], [403874395, 403874396, 318323104, 318323104], [403874395, 403874396, 47574526],
+                [403874395, 403874396, 318323104], [403874396, 47574526, 210697572, 210697572], [403874396, 47574526, 210697572, 318323104],
+                [403874396, 47574526, 318323104, 47574526], [403874396, 47574526, 318323104, 318323104]]
+
+#print(Start_End(startendtest))
+#print(DoubleDel(testlist))

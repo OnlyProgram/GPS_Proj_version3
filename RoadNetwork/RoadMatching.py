@@ -106,47 +106,46 @@ def SelectFinalRoute(candidatewaypath,savefinalroutespath,savefilename):
             #print(eval(filelines[lineindex].strip('\n').split(">>>")[-1]))
             templine = []   #存储临时路线
             # 遍历到最后一行
-            if lineindex == linesnum - 1:
-                break
-            else:
-                print("处理路段{}".format(eval(filelines[lineindex].strip('\n').split(">>>")[-1])))
-                for subline in finalline:
-                    for key in eval(filelines[lineindex].strip('\n').split(">>>")[-1]).keys():
-                        temsubline = []
-                        #print("路段{}匹配key{}".format(subline[-1], key))
-                        # 只需要查看subline的最后一个路段与路段key是否连通即可，因为subline的连通性是通过测试的
-                        connectroute = MapNavigation.waytoway(subline[-1], key)  # 为列表
-                        if connectroute:
-                            temsubline = copy.deepcopy(subline)
-                            temsubline.append(key)  # 只加入轨迹点所属路段，而不加入这两个路段走通的路线
-                            templine.append(temsubline)
-                        else:
-                            #此路线不连通，舍弃当前路段key
-                            pass
-                        """
-                        #此代码块是加入完整路线
-                        if subline[-1] == key:
-                            temsubline = copy.deepcopy(subline)
-                            templine.append(temsubline)
-                        elif connectroute:
-                            #路段可连通
-                            temsubline = copy.deepcopy(subline)
-                            temsubline.extend(connectroute[1:])   #将走通的路线加入到子路线，扩展当前路线
-                            templine.append(temsubline)
-                        else:pass
-                        """
-
-                        #print(temsubline)
-                        #print(templine)
-
-            finalline.clear()
-            finalline = templine
-            #finalline = Common_Functions.Double_layer_list(templine)  #去重
-            #finalline = Common_Functions.Sequential_subset(finalline)  #去除前缀（两个及以上）
-            #print(finalline)
             print(len(finalline))
-            file.write(str(finalline)+"\n")
-            file.flush()
+            print(finalline)
+            #print("处理路段{}".format(eval(filelines[lineindex].strip('\n').split(">>>")[-1])))
+            for subline in finalline:
+                for key in eval(filelines[lineindex].strip('\n').split(">>>")[-1]).keys():
+                    temsubline = []
+                    #print("路段{}匹配key{}".format(subline[-1], key))
+                    # 只需要查看subline的最后一个路段与路段key是否连通即可，因为subline的连通性是通过测试的
+                    connectroute = MapNavigation.Nodirectionwaytoway(subline[-1], key)  # 为列表
+                    if connectroute:
+                        temsubline = copy.deepcopy(subline)
+                        temsubline.append(key)  # 只加入轨迹点所属路段，而不加入这两个路段走通的路线
+                        templine.append(temsubline)
+                    else:
+                        # 此路线不连通，舍弃当前路段key
+                        pass
+                    """
+                    #此代码块是加入完整路线
+                    if subline[-1] == key:
+                        temsubline = copy.deepcopy(subline)
+                        templine.append(temsubline)
+                    elif connectroute:
+                        #路段可连通
+                        temsubline = copy.deepcopy(subline)
+                        temsubline.extend(connectroute[1:])   #将走通的路线加入到子路线，扩展当前路线
+                        templine.append(temsubline)
+                    else:pass
+                    """
+
+                    # print(temsubline)
+                    # print(templine)
+            finalline.clear()
+            finalline = Common_Functions.DoubleDel(templine) #去相邻重复 再去重
+            finalline = Common_Functions.Main_Auxiliary_road(finalline)   #去除头尾路段一样的候选路线
+            finalline = Common_Functions.Start_End(finalline)  # 对于[wayid1,wayid2,wayid3] [wayid1,wayid4,wayid5,wayid3]  去除路段多的,如果包含路段数量一致 暂不处理
+            finalline = Common_Functions.Sequential_subset(finalline)  # 最后去前缀
+            # finalline = Common_Functions.Double_layer_list(templine)  #去重
+            # finalline = Common_Functions.Sequential_subset(finalline)  #去除前缀（两个及以上）
+            #file.write(str(finalline) + "\n")
+            #file.flush()
         print("共选出{}条路".format(len(finalline)))
         print(finalline)
 

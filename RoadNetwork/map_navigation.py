@@ -135,6 +135,7 @@ def waytoway(way_id1, way_id2):
         while True:
             # print("拐点：{}".format(Find_inflectionpoint(tem_way)))
             tem_list = []
+
             for i in Find_inflectionpoint(tem_way):  # 找出路段1的所有拐点
                 if i in node_dic:
                     pass
@@ -142,7 +143,7 @@ def waytoway(way_id1, way_id2):
                     tem_list.append(i)
                     node_dic[i] = None
             way_dic[tem_way] = tem_list
-            # print(node_dic)
+            print(node_dic)
             if index < len(node_dic):
                 tem_lis = []
                 # print("拐点:{}对应的way:{}".format((list(node_dic.keys())[index]),Find_way_By_inflectionpoint(list(node_dic.keys())[index])))
@@ -152,6 +153,7 @@ def waytoway(way_id1, way_id2):
                     else:
                         way_list.append(j)
                         tem_lis.append(j)
+                #print(way_list)
                 node_dic[list(node_dic.keys())[index]] = tem_lis
             else:
                 break
@@ -355,6 +357,7 @@ def Select_Route(dic1,dic2,dic3,dic4,dic5):
 
     #print("选出的路线为：{}".format(return_route))
     return return_route
+#print(waytoway(47574526,403874395))
 #res = FindWayStartEnd(318323170)
 #print(res[0][0],res[0][1])
 #print(waytoway(466289461,606768167))
