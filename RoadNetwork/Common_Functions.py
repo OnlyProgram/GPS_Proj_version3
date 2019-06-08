@@ -6,8 +6,27 @@
 import pymysql
 import math
 from math import radians, cos, sin, asin, sqrt
-
-
+import os
+def findcsvpath(path):
+    """Finding the *.txt file in specify path"""
+    ret = []
+    filelist = os.listdir(path)
+    for filename in filelist:
+        de_path = os.path.join(path, filename)
+        if os.path.isfile(de_path):
+            if de_path.endswith(".csv"):
+                ret.append(de_path)
+    return ret
+def findtxtpath(path):
+    """Finding the *.txt file in specify path"""
+    ret = []
+    filelist = os.listdir(path)
+    for filename in filelist:
+        de_path = os.path.join(path, filename)
+        if os.path.isfile(de_path):
+            if de_path.endswith(".txt"):
+                ret.append(de_path)
+    return ret
 def haversine(lon1, lat1, lon2, lat2):
     """
     :param lon1: 第一个点经度
@@ -23,11 +42,27 @@ def haversine(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a))
     r = 6371  # Radius of earth in kilometers. Use 3956 for miles
     return c * r
+def list2kml(pointsList,filename,savepath):
+    if not os.path.isdir(savepath):
+        os.mkdir(savepath)
+    fullname = filename + '.kml'
+    with open(os.path.join(savepath, fullname), 'a') as file:
+        file.write('<?xml version="1.0" encoding="UTF-8"?>' + '\n')
+        file.write('<kml xmlns="http://earth.google.com/kml/2.0">' + '\n')
+        file.write('<Document>' + '\n')
+        for num in pointsList:
+            #print(str(num[0]) + "," + str(num[1]))
+            file.write('<Placemark>' + '\n')
+            coordinate = "<Point><coordinates>" + str(num[0]) + "," + str(num[1]) + ",0</coordinates></Point>"  # 此处0代表海拔，如果有海拔，可更改
+            file.write(coordinate + '\n')
+            file.write('</Placemark>' + '\n')
+        file.write('</Document>' + '\n')
+        file.write('</kml>' + '\n')
 def Get_way_Nodes(way_id):
     """
     根据way_id得出此路段node,及对应的sequenceid
     :param way_id:
-    :return: 饭后node列表
+    :return: node列表
     """
     connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
     cursor = connection.cursor()
@@ -223,6 +258,7 @@ def Find_Candiate_Point(dic,coordinate1,coordinate2,flag=1):
             else:
                 v2 = [tem_coor1[0], tem_coor1[1], tem_coor2[0], tem_coor2[1]]
             #print("{}轨迹向量V2:{}".format(key, v2))
+
             Cosine = angle(v1, v2)
             if flag == 1:
                 distance = Point_Line_Distance([tem_coor1[0], tem_coor1[1]], [tem_coor2[0], tem_coor2[1]],
@@ -272,12 +308,13 @@ def Find_Candidate_Route(coordinate1,coordinate2,flag=1):
     else:
         return None
     point_Candidate = {}
+    #print(Candidate_Route_dic)
     for key in Candidate_Route_dic.keys():
         # 两个原始轨迹点方向与道路轨迹方向夹角大于90 或者轨迹点到地图道路距离大于40米
-        if Candidate_Route_dic[key][1] > 90 or Candidate_Route_dic[key][0] > 0.0004:
-            pass
-        else:
+        if Candidate_Route_dic[key][1] <=90 and Candidate_Route_dic[key][0] <= 0.0003:
             point_Candidate[key] = Candidate_Route_dic[key]
+        else:
+            pass
     return point_Candidate
 def Double_layer_list(doublelist:list):
     """
@@ -293,7 +330,7 @@ def Is_List_Prefix(list1:list,list2:list):
     判断两个是否为另一个前缀,
     :param list1:
     :param list2:
-    :return:返回前缀
+    :return:返回长度较长的
     """
     len1 = len(list1)
     len2 = len(list2)
@@ -305,7 +342,7 @@ def Is_List_Prefix(list1:list,list2:list):
             else:
                 flag=0
         if flag==1:
-            return list1
+            return list2
         else:return None
     elif len1>len2:
         for index in range(len2):
@@ -314,12 +351,13 @@ def Is_List_Prefix(list1:list,list2:list):
             else:
                 flag=0
         if flag==1:
-            return list2
+            return list1
         else:return None
 def Sequential_subset(slist):
     """
     #传入时不会有重复子列表
-    如果一个列表是两个及以上的前缀，则会被删除，如果只是一个列表的前缀，则不会被删除（路口）
+    如果有两个及以上的路线是其前缀 则此路线会被删除
+    #如果一个列表是两个及以上的前缀，则会被删除，如果只是一个列表的前缀，则不会被删除（路口）
 
     去除子集  如[[1,2,3],[1,2]]
     :param slist: 为双层嵌套列表
@@ -378,13 +416,16 @@ def Main_Auxiliary_road(slist:list):
     :return:
     """
     startenddel_waylist = []  #路段头尾路段编号相同 待删除路段
+    if len(slist)==1:   #只有一个路段
+        return slist
     for sub in slist:
+        if len(sub)==1:   #路线中只有一个路段  不经过以下处理
+            continue
         if sub[0]==sub[-1]:
             startenddel_waylist.append(sub)
     for subdel in startenddel_waylist:
         slist.remove(subdel)
     # 以上的去除同一条候选路线头尾路段编号相同的路线
-
     return  slist
 def Start_End(slist:list):
     # 以下为去除 ：对于[wayid1,wayid2,wayid3] [wayid1,wayid4,wayid5,wayid3]  去除路段多的,如果包含路段数量一致 暂不处理
@@ -412,6 +453,57 @@ def Start_End(slist:list):
     for delsub in del_list:
         slist.remove(delsub)
     return slist
+def SaveRoutesConn(tablename,wayid1,wayid2,flag):
+    """
+    存储wayid1 wayid2的通行关系  能通过flag为1 否则为0
+    :param tablename: 存储此关系的表名，  #测试表为 connects
+    :param wayid1: 路段编号
+    :param wayid2:
+    :param flag: wayid1 wayid2的通行关系  能通过flag为1 否则为0
+    :return:
+    """
+    connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
+    cursor = connection.cursor()
+    cursor.execute("use bjosm;")
+    sql_insert = """insert into {}(`Startway`, `Endway`, `Flag`) values({},{},{});""".format(tablename, wayid1,wayid2,flag)
+    try:
+        cursor.execute(sql_insert)  # 执行sql语句
+        connection.commit()  # 提交
+    except Exception as e:
+        connection.rollback()
+        cursor.close()
+        connection.close()
+def InquireConn(wayid1,wayid2,tablename="connects"):
+    """
+    查询wayid1能否到达wayid2
+    :param wayid1:
+    :param wayid2:
+    :return: 能通过返回True 否则返回False
+    """
+    connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
+    cursor = connection.cursor()
+    cursor.execute("use bjosm;")
+    sql = """ SELECT connects.Flag FROM {}  WHERE connects.Startway ={}  AND connects.Endway = {}""".format(tablename,wayid1,wayid2)
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()  # 元组
+
+        if not result:   #没有此记录
+            return -1
+        #a =result[0]
+        #print(type(a))
+        if len(result)==1:    #如果查到两条及以上信息，证明数据库表中出现错误 返回错误
+            if result[0][0]==1:
+                return 1
+            else:
+                return 0
+        else:
+            return -1
+    except Exception as e:
+        print(e)
+        cursor.close()
+        connection.close()
+        return -1
 di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10], [2207731541, 11], [727309621, 12]],
       47574526: [[727309576, 2], [2207731519, 3], [727309578, 4], [727309579, 5], [727309582, 6]],
       47574777: [[605279076, 1], [605279309, 2]],
@@ -444,3 +536,12 @@ startendtest = [[47574526, 210697572, 210697572], [47574526, 210697572, 31832310
 
 #print(Start_End(startendtest))
 #print(DoubleDel(testlist))
+
+
+
+
+
+
+
+
+#print(Find_Candidate_Route([116.438873,39.720602,1439,721],[116.440766,39.721626,1441,722],flag=2))

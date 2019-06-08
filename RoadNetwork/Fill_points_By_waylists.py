@@ -9,6 +9,7 @@
 from RoadNetwork import Road_matching
 from RoadNetwork import MapNavigation
 import os
+from RoadNetwork import Common_Functions
 def del_adjacent(alist):
     """
     删除相邻重复元素
@@ -97,40 +98,41 @@ def GetAllLines(route_list:list):
     del_adjacent(All_Lines)
     return All_Lines
 
-def BatchProcessFinalLines(txtpath,kmlsavepath,savepath):
+def BatchProcessFinalLines(txtpath,kmlsavepath):
     """
     批量处理每辆车的完成路网匹配
     :param txtpath: txt文件路径，txt文件是最终确定的轨迹点所属路段的存储文件
     :param kmlsavepath: kml文件的保存路径
-    :param savepath:路网匹配之后的完整路径
     :return:
     """
-    savsfilename = "Complete_routes"
     if not os.path.isdir(kmlsavepath):
         os.mkdir(kmlsavepath)
-    if not os.path.isdir(savepath):
-        os.mkdir(savepath)
-    count = 0
-    temfilename = ""  #kml文件名
     with open(txtpath,'r') as file:
         lines = file.readlines()
         linesnum = len(lines)
+        finalconnways = []  #最终能走通的路线
+        count = 0
         for i in range(linesnum):
-            if lines[i].strip("\n"):
-                count += 1
-                if count%3 == 1:
-                    temfilename = lines[i].strip("\n")
-                elif count%3==0:
-                    AllRoutes = Judge_Route_connectivity(GetAllLines(eval(lines[i].strip("\n"))))
-                    AllNodeLists = []  # 路线中所有的坐标点
-                    for subline in AllRoutes:
-                        AllNodeLists.extend(Fill_coordinate_By_Routes(subline))
-                    print(temfilename)
-                    Road_matching.list2kml(AllNodeLists,temfilename,kmlsavepath)
-                    temfilename = ""
-#BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\tsetfinallines.txt","H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml","H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes")
-lis= [403874396, 47574526, 318323104, 47574526, 318323104, 466289456, 606768158, 466839079, 466839081]
-print(GetAllLines(lis))
-#nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
+            waylists = GetAllLines(eval(lines[i].strip("\n")))
+            if len(waylists)>=3:
+                if MapNavigation.JudgeLines(waylists):
+                    finalconnways.append(waylists)
+            elif len(waylists)==2:
+                if MapNavigation.JudgeTwoWay(waylists[0],waylists[1]):
+                    finalconnways.append(waylists)
+            else:pass
+            print(finalconnways)
+        finalconnways = Common_Functions.Double_layer_list(finalconnways)
+        for sub in finalconnways:
+            print(sub)
+            count += 1
+            nodes = Fill_coordinate_By_Routes(sub)
+            Common_Functions.list2kml(nodes, str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\006b7fa2")
 
-#Road_matching.list2kml(nodes,"xtx","H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\334e")
+BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\05950b7a-d5d3-4161-87bd-b63bbea2a665.txt",
+                       "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
+# lis= [403874395, 403874396, 47574526, 466289456, 606768164, 606768158, 466839079, 606769458]
+# print(GetAllLines(lis))
+# nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
+# Road_matching.list2kml(nodes,str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\334e")
+# [317913828, 29136270,152616724
