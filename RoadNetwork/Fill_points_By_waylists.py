@@ -44,8 +44,7 @@ def Fill_coordinate_By_Routes(waylists:list):
             First_intersection = Second_intersection
     for node in AllNodeIDLists:
         node_coordinate = Road_matching.Get_Coordinate(node)
-        if 116.3906755<node_coordinate[0]<116.4958043 and 39.6905694<node_coordinate[1]<39.7506401:  #此范围为北野场桥扩大区域的范围
-            AllNodeLists.append(node_coordinate)
+        AllNodeLists.append(node_coordinate)
     return AllNodeLists
 
 def Judge_Route_connectivity(waylists:list):
@@ -129,10 +128,9 @@ def BatchProcessFinalLines(txtpath,kmlsavepath):
             nodes = Fill_coordinate_By_Routes(sub)
             Common_Functions.list2kml(nodes, str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\006b7fa2")
 
-BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\05950b7a-d5d3-4161-87bd-b63bbea2a665.txt",
-                       "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
-# lis= [403874395, 403874396, 47574526, 466289456, 606768164, 606768158, 466839079, 606769458]
-# print(GetAllLines(lis))
-# nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
-# Road_matching.list2kml(nodes,str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\334e")
-# [317913828, 29136270,152616724
+#BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\05950b7a-d5d3-4161-87bd-b63bbea2a665.txt",
+ #                      "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
+#lis= [317889642, 317889652, 30048339, 317889644, 317889646, 238748573, 258296019]
+#nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
+
+#Road_matching.list2kml(nodes,"txt","H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\334e")
