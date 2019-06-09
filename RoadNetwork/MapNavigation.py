@@ -12,13 +12,40 @@
 import pymysql
 import os
 import sys
-import copy
+import copy,math
 from RoadNetwork import Common_Functions
 def Get_key_by_value(dic, value):
     for key in dic.keys():
         if value in dic[key]:
             return key
     return None
+def Getway_start_node(wayid):
+    """
+    得到路段的起点坐标
+    flag=0 代表获取路段起点的编号
+    flag = 1代表获取路段末尾点的网格编号
+    :return:
+    """
+    wayids = Get_way_NodeID(wayid)
+    if wayids:
+        processnodeid = wayids[0]
+        return processnodeid
+    else:
+        return False
+def TwoPoints_distance(coor1,coor2):
+    return math.sqrt((coor1[0]-coor2[0])**2 +(coor1[1]-coor2[1])**2)
+def twoway_distance(wayid1,wayid2):
+    """
+    计算wayid1的起点->wayid2起点之间的距离
+    :param wayid1:
+    :param wayid2:
+    :return:
+    """
+    node1 = Getway_start_node(wayid1)
+    node2 = Getway_start_node(wayid2)
+    Coordinate1 = Get_Coordinate(node1)
+    Coordinate2 = Get_Coordinate(node2)
+    return TwoPoints_distance(Coordinate1,Coordinate2)
 def Get_Coordinate(node_id):
     """
     根据node_id查坐标
@@ -35,6 +62,7 @@ def Get_Coordinate(node_id):
         return result
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 def Get_way_NodeID(way_id):
@@ -56,6 +84,7 @@ def Get_way_NodeID(way_id):
         return way_nodes_list
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 def TwoWay_intersection(wayid1, wayid2):
@@ -144,6 +173,7 @@ def Get_way_NodesSequenceId(way_id):
         return way_nodes_list
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 class myException(Exception):
@@ -276,6 +306,7 @@ def Get_Crid(node_id):
         return result
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 def Getway_startendnode_grid(wayid,flag = 0):
@@ -333,31 +364,16 @@ def waytoway(way_id1,way_id2,max_num=8):
         grid2 = Getway_startendnode_grid(way_id1, flag=0)
         Endx = grid2[0]
         Endy = grid2[1]
+        startendwaydis = twoway_distance(way_id1, way_id2)+ 0.01 # 加1000米弹性范围，0.0003为30米
         while True:
             #print(Candidate_Routes)
+            #print(count)
             temCandidate_Routes = []  # 存储当前这一轮新的候选路线
             AllNextways = []
-            MaxDel = []  # 存因路段数目大于阈值，而筛除的路线
-            for sub in Candidate_Routes:
-                if way_id2 in sub:
-                    flag = 1
-                    break
-                if len(sub) > max_num:  # 防止寻找时间过长，如果目的是为了查找路线，可将此条件删除
-                    MaxDel.append(sub)
-            for sub in MaxDel:
-                Candidate_Routes.remove(sub)
-            if len(Candidate_Routes) == 0:
-                flag = 1
-                exitflag = 1
-            if count == 8:    #此条件防止查找时间过长
-                flag = 1
-                exitflag = 1
-            if flag == 1:
-                break
             for subroute in Candidate_Routes:
                 # subroute 表示正在处理的路线
                 processingway = subroute[-1]  # 表示要处理的路段
-                nextway = FindNextWay(processingway,subroute)  # 下一步的可选路段
+                nextway = NodirectionFindNextWay(processingway,subroute)  # 下一步的可选路段
                 if len(nextway) == 0:
                     # 当前路线下一步没有能走的路
                     pass
@@ -367,6 +383,10 @@ def waytoway(way_id1,way_id2,max_num=8):
                         temroute = copy.deepcopy(subroute)
                         temroute.append(next)
                         temCandidate_Routes.append(temroute)
+            if len(AllNextways)==0:
+                #所有的候选路线都没有下一步路可走
+                flag=1
+                exitflag = 1
             count += 1
             Candidate_Routes.clear()
             Candidate_Routes = temCandidate_Routes
@@ -376,19 +396,40 @@ def waytoway(way_id1,way_id2,max_num=8):
             Candidate_Routes = Common_Functions.Sequential_subset(Candidate_Routes)  # 最后去前缀
             delsub = []
             for sub in Candidate_Routes:
-                if len(sub) >= 3:
-                    if JudgeLines(sub):  # 判断当前路线是否能通
-                        pass
+                if way_id2 in sub:
+                    flag = 1
+                    break
+            if len(Candidate_Routes) == 0:
+                flag = 1
+                exitflag = 1
+            if count == 8:
+                flag = 1
+                exitflag = 1
+            if flag == 1:
+                break
+            if count > 4:
+                #加入这个条件是为了防止找较近的不通路段时，由于方向问题，删除了方向错误的路线，导致查找时间过长
+                for sub in Candidate_Routes:
+                    if len(sub) >= 3:
+                        if JudgeLines(sub):  # 判断当前路线是否能通
+                            pass
+                        elif not JudgeLines(sub) and way_id2 in sub:  # 目标路段在子路线中  但是不能走通
+                            Common_Functions.SaveRoutesConn("connects", way_id1, way_id2, 0)
+                            return False
+                        else:
+                            delsub.append(sub)
+                            continue
+                    elif len(sub) == 2:
+                        if JudgeTwoWay(sub[0], sub[1]):
+                            pass
+                        elif JudgeTwoWay(sub[0], sub[1]) and way_id2 in sub:  # 目标路段在子路线中  但是不能走通
+                            Common_Functions.SaveRoutesConn("connects", way_id1, way_id2, 0)
+                            return False
+                        else:
+                            delsub.append(sub)
+                            continue
                     else:
-                        delsub.append(sub)
-                        continue
-                elif len(sub)==2:
-                    if JudgeTwoWay(sub[0],sub[1]):
                         pass
-                    else:
-                        delsub.append(sub)
-                        continue
-                else:pass
             for sub in Candidate_Routes:
                 # 判断行驶方向
                 secondgrid = Getway_startendnode_grid(sub[-1], flag=0)
@@ -401,24 +442,49 @@ def waytoway(way_id1,way_id2,max_num=8):
                         elif curx <= startx and cury <= starty:
                             delsub.append(sub)  # 此路线方向向左下部走  删除此路线
                     if Endx > startx and Endy < starty:  # 路段way_id2 在way_id1 的右下部
-                        if curx < startx and cury > starty:
+                        if abs(startx - curx) <= 5 or abs(starty - cury) <= 5:  # 防止道路过近，出现偏差，方向加500米偏差
+                            pass
+                        elif curx < startx and cury > starty:
                             delsub.append(sub)  # 此路线方向向左上部走  删除此路线
                     if Endx < startx and Endy < starty:  # 路段way_id2 在way_id1 的左下部
-                        if curx > startx and cury > starty:
+                        if abs(startx - curx) <= 5 or abs(starty - cury) <= 5:  # 防止道路过近，出现偏差，方向加500米偏差
+                            pass
+                        elif curx > startx and cury > starty:
                             delsub.append(sub)  # 此路线方向向右上部走  删除此路线
                     if Endx < startx and Endy > starty:  # 路段way_id2 在way_id1 的左上部
-                        if curx > startx and cury < starty:
+                        if abs(startx - curx) <= 5 or abs(starty - cury) <= 5:  # 防止道路过近，出现偏差，方向加500米偏差
+                            pass
+                        elif curx > startx and cury < starty:
                             delsub.append(sub)  # 此路线方向向右上部走  删除此路线
                 else:
                     pass
-            for sub in delsub:
+                temstaryendwaydis = twoway_distance(way_id1, sub[-1])
+                if temstaryendwaydis > startendwaydis:
+                    delsub.append(sub)
+            for sub in Common_Functions.Double_layer_list(delsub):
                 Candidate_Routes.remove(sub)
-            if len(AllNextways)==0:
-                #所有的候选路线都没有下一步路可走
-                flag=1
-                exitflag = 1
         if exitflag==1:
             #证明是循环跳出不是因为找到路径跳出的
+            Common_Functions.SaveRoutesConn("connects", way_id1, way_id2, 0)
+            return False
+        Deleteways = []
+        for sub in Candidate_Routes:
+            # 由于以上前四段没有方向的判断，所以在此循环中要加入方向的判断
+            if way_id2 in sub:
+                if len(sub) == 1:
+                    return sub
+                elif len(sub) == 2 and JudgeTwoWay(sub[0], sub[1]):
+                    pass
+                elif len(sub) >= 3 and JudgeLines(sub):
+                    pass
+                else:
+                    Deleteways.append(sub)
+            else:
+                Deleteways.append(sub)
+        if len(Deleteways)!=0:
+            for delsub in Common_Functions.Double_layer_list(Deleteways):
+                Candidate_Routes.remove(delsub)
+        if len(Candidate_Routes)==0:
             Common_Functions.SaveRoutesConn("connects", way_id1, way_id2, 0)
             return False
         minnum = float("inf")
@@ -556,7 +622,7 @@ def Nodirectionwaytoway(way_id1,way_id2,max_sum=8):
                     delsub.append(sub)
 
 
-            for sub in delsub:
+            for sub in Common_Functions.Double_layer_list(delsub):
                 Candidate_Routes.remove(sub)
             #print(len(Candidate_Routes))
             if len(AllNextways)==0:
@@ -583,11 +649,12 @@ def Nodirectionwaytoway(way_id1,way_id2,max_sum=8):
                     Deleteways.append(sub)
             else:
                 Deleteways.append(sub)
-        #print(Deleteways)
         if len(Deleteways)!=0:
-            for delsub in Deleteways:
+            for delsub in Common_Functions.Double_layer_list(Deleteways):
                 Candidate_Routes.remove(delsub)
-
+        if len(Candidate_Routes)==0:
+            Common_Functions.SaveRoutesConn("connects", way_id1, way_id2, 0)
+            return False
         for sub in Candidate_Routes:
             if way_id2 in sub:
                 if len(sub) < minnum:
@@ -685,3 +752,10 @@ def waytoway(way_id1, way_id2):
             #print("无法从路段:{}行驶到路段:{}".format(way_id1,way_id2))
             return None
 """
+#print(waytoway(242945739,23272311))#[242945739, 242945750, 242945771, 239743243, 167445174, 23272311]
+import time
+#stime = time.time()
+#print(waytoway(242945771,606768158))  #加入距离控制之后测试这个查找时间 实际为不通
+#print(time.time()-stime)
+#242945736匹配key:152616724
+

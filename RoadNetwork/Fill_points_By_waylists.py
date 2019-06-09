@@ -126,10 +126,10 @@ def BatchProcessFinalLines(txtpath,kmlsavepath):
             print(sub)
             count += 1
             nodes = Fill_coordinate_By_Routes(sub)
-            Common_Functions.list2kml(nodes, str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\006b7fa2")
+            Common_Functions.list2kml(nodes, str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\10706a7b-3d56-4551-9a09-debda7d2c032")
 
-#BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\05950b7a-d5d3-4161-87bd-b63bbea2a665.txt",
- #                      "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
+BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\10706a7b-3d56-4551-9a09-debda7d2c032.txt",
+                       "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
 #lis= [317889642, 317889652, 30048339, 317889644, 317889646, 238748573, 258296019]
 #nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
 

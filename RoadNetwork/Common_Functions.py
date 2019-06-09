@@ -77,6 +77,7 @@ def Get_way_Nodes(way_id):
         return way_nodes_list
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 def angle(v1, v2):
@@ -142,6 +143,7 @@ def Get_Coordinate(node_id):
         return result
     except Exception as e:
         print(e)
+    finally:
         cursor.close()
         connection.close()
 def Find_two_Point(Candidate_way_lis,lon,lat):
@@ -214,6 +216,7 @@ def Find_nearby_Point(x_grid,y_grid,difference = 3):
     except Exception as e:
         print(e)
         connection.rollback()
+    finally:
         cursor.close()
         connection.close()
     return  node_id_dict
@@ -462,15 +465,16 @@ def SaveRoutesConn(tablename,wayid1,wayid2,flag):
     :param flag: wayid1 wayid2的通行关系  能通过flag为1 否则为0
     :return:
     """
-    connection = pymysql.connect(host='localhost', user='root', passwd='123456', charset='utf8')
+    connection = pymysql.connect(host='localhost', user='root', passwd='123456',db='bjosm', charset='utf8')
     cursor = connection.cursor()
-    cursor.execute("use bjosm;")
+    #cursor.execute("use bjosm;")
     sql_insert = """insert into {}(`Startway`, `Endway`, `Flag`) values({},{},{});""".format(tablename, wayid1,wayid2,flag)
     try:
         cursor.execute(sql_insert)  # 执行sql语句
         connection.commit()  # 提交
     except Exception as e:
         connection.rollback()
+    finally:
         cursor.close()
         connection.close()
 def InquireConn(wayid1,wayid2,tablename="connects"):
@@ -501,9 +505,10 @@ def InquireConn(wayid1,wayid2,tablename="connects"):
             return -1
     except Exception as e:
         print(e)
+        return -1
+    finally:
         cursor.close()
         connection.close()
-        return -1
 di = {42500477: [[727309730, 7], [727309731, 8], [727309734, 9], [727309736, 10], [2207731541, 11], [727309621, 12]],
       47574526: [[727309576, 2], [2207731519, 3], [727309578, 4], [727309579, 5], [727309582, 6]],
       47574777: [[605279076, 1], [605279309, 2]],

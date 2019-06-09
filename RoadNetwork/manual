@@ -62,6 +62,16 @@ d）高级的算法往往综合考虑使用全面信息，有卡尔曼滤波、�
 本周处理问题：
 舍弃重复、冗余的候选路线
 修改地图简易导航
-
+操作mysql时，无论是否出错，在最后关闭连接，在执行插入操作是，如果出错，要执行connection.rollback()
+如：
+    try:
+        cursor.execute(sql_insert)  # 执行sql语句
+        connection.commit()  # 提交
+    except Exception as e:
+        print(e)
+        connection.rollback()
+    finally:
+        cursor.close()
+        connection.close()
 
 设置一个字典存储：路段的通行关系，节省查找时间，即

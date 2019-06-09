@@ -108,18 +108,18 @@ def SelectFinalRoute(candidatewaypath,savefinalroutespath):
         # 遍历每个坐标点的候选路段
         print("需要处理坐标数为：{}".format(linesnum))
         for lineindex in range(1,linesnum):
-            print(eval(filelines[lineindex].strip('\n').split(">>>")[-1]))
             templine = []   #存储临时路线
             # 遍历到最后一行
             print(len(finalline))
             print(finalline)
+            print("处理坐标{}:{}".format(lineindex,eval(filelines[lineindex].strip('\n').split(">>>")[-1])))
             #print("处理路段{}".format(eval(filelines[lineindex].strip('\n').split(">>>")[-1])))
             for subline in finalline:
                 for key in eval(filelines[lineindex].strip('\n').split(">>>")[-1]).keys():
                     temsubline = []
 
                     #此代码块只加入key，不加入完整路线
-                    print("路段{}匹配key{}".format(subline[-1], key))
+                    print("路段:{}匹配key:{}".format(subline[-1], key))
                     # 只需要查看subline的最后一个路段与路段key是否连通即可，因为subline的连通性是通过测试的
                     connectroute = Common_Functions.InquireConn(subline[-1], key,"connects")   #先查表
                     #connectroute = -1
