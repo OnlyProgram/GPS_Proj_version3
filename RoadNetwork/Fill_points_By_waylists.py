@@ -28,9 +28,21 @@ def Fill_coordinate_By_Routes(waylists:list):
     """
     AllNodeLists = []  #道路坐标列表
     AllNodeIDLists = []  #道路坐标点编号列表
-    First_intersection = None #第一个交点
+    First_intersection = 0 #第一个交点
+    if len(waylists)==0:
+        return None
+    if len(waylists) == 1:
+        nodelist = Road_matching.Get_way_nodes(waylists[0])
+        AllNodeIDLists.extend(nodelist[:])
+        for node in AllNodeIDLists:
+            node_coordinate = Road_matching.Get_Coordinate(node)
+            AllNodeLists.append(node_coordinate)
+        return AllNodeLists
     for index in range(len(waylists)):
         if index == len(waylists)-1:
+            nodelist = Road_matching.Get_way_nodes(waylists[index])
+            First_intersection_index = nodelist.index(First_intersection)
+            AllNodeIDLists.extend(nodelist[First_intersection_index:])
             break
         else:
             Second_intersection = MapNavigation.TwoWay_intersection(waylists[index],waylists[index+1])[0][0]  #两条路交点,TwoWay_intersection返回的为元组，如（（1213）,）
@@ -42,6 +54,7 @@ def Fill_coordinate_By_Routes(waylists:list):
             Second_intersection_index = nodelist.index(Second_intersection) #第二个坐标交点
             AllNodeIDLists.extend(nodelist[First_intersection_index:Second_intersection_index+1])
             First_intersection = Second_intersection
+
     for node in AllNodeIDLists:
         node_coordinate = Road_matching.Get_Coordinate(node)
         AllNodeLists.append(node_coordinate)
@@ -97,11 +110,12 @@ def GetAllLines(route_list:list):
     del_adjacent(All_Lines)
     return All_Lines
 
-def BatchProcessFinalLines(txtpath,kmlsavepath):
+def FinalLines(txtpath,kmlsavepath,txtfile):
     """
     批量处理每辆车的完成路网匹配
     :param txtpath: txt文件路径，txt文件是最终确定的轨迹点所属路段的存储文件
     :param kmlsavepath: kml文件的保存路径
+    txtfile  kml路线对应的txt文档
     :return:
     """
     if not os.path.isdir(kmlsavepath):
@@ -120,16 +134,40 @@ def BatchProcessFinalLines(txtpath,kmlsavepath):
                 if MapNavigation.JudgeTwoWay(waylists[0],waylists[1]):
                     finalconnways.append(waylists)
             else:pass
-            print(finalconnways)
+            #print(finalconnways)
         finalconnways = Common_Functions.Double_layer_list(finalconnways)
+        file = open(txtfile,'a')
         for sub in finalconnways:
             print(sub)
+            file.write(str(sub)+"\n")
             count += 1
             nodes = Fill_coordinate_By_Routes(sub)
-            Common_Functions.list2kml(nodes, str(count),"H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\\10706a7b-3d56-4551-9a09-debda7d2c032")
+            Common_Functions.list2kml(nodes, str(count),kmlsavepath)
+        file.close()
+def BatchSelectLines(Candidatewaypath,savepath):
+    """
+    批量选出最终匹配的轨迹
+    :param Candidatewaypath: 所有候选路线的txt路径
+    :param savepath: kml保存路径
+    :return:
+    """
+    txtlist = Common_Functions.findtxtpath(Candidatewaypath)
+    for singletxt in txtlist:
+        print(singletxt)
+        (tempath, tempfilename) = os.path.split(singletxt)  # tempfilename为txt文件名（包含后缀）
+        (trunkname, extension) = os.path.splitext(tempfilename)  # filename 为传入的txt文件名 extension为后缀
+        kmlsavepath = os.path.join(savepath,trunkname)
+        txtkmllinename = trunkname +".txt"
+        if not os.path.isdir(kmlsavepath):
+            os.mkdir(kmlsavepath)
+        FinalLines(singletxt,kmlsavepath,os.path.join(kmlsavepath,txtkmllinename))
 
-BatchProcessFinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\10706a7b-3d56-4551-9a09-debda7d2c032.txt",
-                       "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
+#FinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\\10706a7b-3d56-4551-9a09-debda7d2c032.txt","H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml")
+BatchSelectLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\Test","H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch")
+# FinalLines("H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes\Test\\99b9e495-22f3-4dd2-81e1-a946b3805229.txt",
+#            "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\99b9e495-22f3-4dd2-81e1-a946b3805229",
+#            "H:\GPS_Data\Road_Network\BYQBridge\KML\PartTrunksAreaKml\Batch\99b9e495-22f3-4dd2-81e1-a946b3805229\\99b9e495.txt")
+
 #lis= [317889642, 317889652, 30048339, 317889644, 317889646, 238748573, 258296019]
 #nodes = Fill_coordinate_By_Routes(GetAllLines(lis))
 

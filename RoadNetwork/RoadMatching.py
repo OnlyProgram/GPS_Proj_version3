@@ -14,10 +14,31 @@ import os
 from RoadNetwork import Common_Functions
 from RoadNetwork import MapNavigation
 import copy
-import time
+from itertools import permutations
+import time,json
+def AllwayConn(waysjsonpath):
+    """
+    对左右的路段进行连通性判断
+    permutations(Allwayset,2) 二二组合，（A,B,C）->AB AC BA BC CA CB
+    :param waysjsonpath:所有路段json文件路径
+    :return:
+    """
+    AllwaysLists = []
+    with open(waysjsonpath, 'r') as file:
+        dic = json.loads(file.read())
+    for key in dic.keys():
+        AllwaysLists.append(key)
+    Allwaysset = set(AllwaysLists)
+    for twowaytuple in permutations(Allwaysset,2):
+        print(f"正在查看路段:{twowaytuple[0]}与路段:{twowaytuple[1]}的连通性......")
+        routes = MapNavigation.waytoway(twowaytuple[0], twowaytuple[1])
+        if routes:
+            print(f"路段{twowaytuple[0]}---->{twowaytuple[1]}的路线：{routes}")
+        else:
+            print(f"路段{twowaytuple[0]}不能到达路段{twowaytuple[1]}")
 def FindPointCandidateWay(csvfilepath,candidatewaypath,candidatewayname):
     """
-    找出坐标点的候选路段，此部分已经通过角度（大于90）、距离（大于40米）筛除一部分候选路段
+    找出坐标点的候选路段，此部分已经通过角度（大于90）、距离（大于30米）筛除一部分候选路段
     :param csvfilepath: csv文件路径 例：H:\TrunksArea\\334e4763-f125-425f-ae42-8028245764fe.csv"
     :param candidatewaypath:  轨迹点候选路段保存路径
     :param candidatewayname: 候选路段保存的文件名
@@ -200,6 +221,7 @@ Candidatewaypath ="H:\GPS_Data\Road_Network\BYQBridge\CandidateWay\\NewStrategy"
 csvpath = "H:\GPS_Data\Road_Network\BYQBridge\TrunksArea"
 areacsvpath = "H:\GPS_Data\Road_Network\BYQBridge\CandidateWay\\NewStrategy"
 finalroutespath = "H:\GPS_Data\Road_Network\BYQBridge\FinalRoutes"
-BatchSelectFinalRoute(Candidatewaypath,finalroutespath)
+#BatchSelectFinalRoute(Candidatewaypath,finalroutespath)
 #BatchProcesCandidateWay(csvpath,areacsvpath)
+AllwayConn('H:\GPS_Data\Road_Network\BYQBridge\JSON\BigBYCQ\Delfootwayetc\wayslist.json')
 print("耗时：{}".format(time.time()-starttime))

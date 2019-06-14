@@ -328,7 +328,7 @@ def Getway_startendnode_grid(wayid,flag = 0):
         return [0,0]
 
 
-def waytoway(way_id1,way_id2,max_num=8):
+def waytoway(way_id1,way_id2,max_num=6):
     """
     实现从way_id1到way_id2的路线规划,当此函数完全用作简易导航，可设置max_num为无穷
     设置 max_num 与Count 的原因为防止查找完全不通的两个路段而耗费过长的时间
@@ -402,7 +402,7 @@ def waytoway(way_id1,way_id2,max_num=8):
             if len(Candidate_Routes) == 0:
                 flag = 1
                 exitflag = 1
-            if count == 8:
+            if count == max_num:
                 flag = 1
                 exitflag = 1
             if flag == 1:

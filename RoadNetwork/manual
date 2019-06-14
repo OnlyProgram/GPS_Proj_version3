@@ -13,7 +13,7 @@
 2、数据获取
 可在https://download.bbbike.org/osm/bbbike/ 获取常见的城市osm文件
 也可通过https://download.geofabrik.de/  下载中国的osm文件，然后通过以下命令提取自己所需区域的路网数据
-osmosis --read-xml file=e:\China.osm --bounding-box left="112.57" right="114.03" top="23.56" bottom="22.26" --write-xml file=E:\guangzhou.osm
+osmosis --read-xml file=H:\GPS_Data\Road_Network\china-latest.osm\china-latest.osm --bounding-box left="115.000" right="117.500" top="41.2" bottom="39" --write-xml file=E:\BJ.osm
 
 3、道路匹配算法
 a）基于几何的算法考虑GPS点与道路的几何信息，如距离、角度等；
@@ -51,7 +51,8 @@ d）高级的算法往往综合考虑使用全面信息，有卡尔曼滤波、�
 发现的问题：简单的导航功能没有考虑方向，即即使两个way有交点，也不一定能走通，需要考虑方向，
 如：way1——>way2能够通行，但是反过来是不能通行的，因为way1是单向的。
  在对每个轨迹点的候选路段进行连接时，会出现很多重复路线（路段表示不一样），
- 去除一些路段表示为其他路段表示前缀的路线（是两个路线及以上的前缀）
+ 去除一些路段表示为其他路段表示前缀的路线（是两个路线及以上的前缀,去除最长的），如：[way1]，[way1，way2],[way1,way2,way3]
+ 会舍弃[way1,way2,way3]
 
 9、 出现断路的处理  即整个轨迹要分段处理（两个点相隔10公里分段？）
 

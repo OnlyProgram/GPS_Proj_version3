@@ -313,7 +313,7 @@ def Find_Candidate_Route(coordinate1,coordinate2,flag=1):
     point_Candidate = {}
     #print(Candidate_Route_dic)
     for key in Candidate_Route_dic.keys():
-        # 两个原始轨迹点方向与道路轨迹方向夹角大于90 或者轨迹点到地图道路距离大于40米
+        # 两个原始轨迹点方向与道路轨迹方向夹角大于90 或者轨迹点到地图道路距离大于30米
         if Candidate_Route_dic[key][1] <=90 and Candidate_Route_dic[key][0] <= 0.0003:
             point_Candidate[key] = Candidate_Route_dic[key]
         else:
